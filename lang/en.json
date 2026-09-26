@@ -1,0 +1,69 @@
+{
+  "chat-search": {
+    "title": "Chat Search",
+    "open": "Search Chat",
+    "keybinding": "Open Chat Search",
+    "placeholder": "Search messages… use \"quotes\" for phrases",
+    "any": "Any",
+    "remove": "Remove filter",
+    "clear": "Clear all",
+    "more": "Show more",
+    "empty": "No messages match.",
+    "count": "{shown} of {total} messages",
+    "notFound": "That message is no longer in the chat log.",
+    "time": {
+      "label": "Time range",
+      "all": "All time",
+      "hour": "Last hour",
+      "today": "Today",
+      "week": "Last 7 days"
+    },
+    "facet": {
+      "author": "Player",
+      "speaker": "Speaker",
+      "visibility": "Visibility",
+      "kind": "Type"
+    },
+    "visibility": {
+      "public": "Public",
+      "whisper": "Whisper",
+      "blind": "Blind"
+    },
+    "kind": {
+      "roll": "Roll",
+      "message": "Message"
+    },
+    "pf2e": {
+      "facet": {
+        "rollType": "Roll type",
+        "outcome": "Degree of success",
+        "target": "Target",
+        "item": "Item or spell",
+        "damageType": "Damage type",
+        "trait": "Trait"
+      },
+      "rollType": {
+        "attack-roll": "Attack",
+        "check": "Check",
+        "counteract-check": "Counteract",
+        "flat-check": "Flat check",
+        "initiative": "Initiative",
+        "perception-check": "Perception",
+        "saving-throw": "Save",
+        "skill-check": "Skill check",
+        "damage-roll": "Damage",
+        "damage-taken": "Damage taken",
+        "spell-cast": "Spell cast",
+        "self-effect": "Self effect",
+        "area-fire": "Area fire",
+        "auto-fire": "Auto fire"
+      },
+      "outcome": {
+        "criticalSuccess": "Critical success",
+        "success": "Success",
+        "failure": "Failure",
+        "criticalFailure": "Critical failure"
+      }
+    }
+  }
+}

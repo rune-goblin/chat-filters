@@ -1,0 +1,21 @@
+#chat-search-app .window-content {
+  padding: 0.5rem;
+}
+
+.chat-search-root {
+  height: 100%;
+}
+
+@keyframes chat-search-flash {
+  0%,
+  60% {
+    box-shadow: 0 0 0 2px var(--color-warm-2, #ee9b3a), 0 0 12px var(--color-warm-2, #ee9b3a);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+.chat-log .message.chat-search-flash {
+  animation: chat-search-flash 2s ease-out;
+}
