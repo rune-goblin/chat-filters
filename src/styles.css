@@ -1,9 +1,49 @@
-#chat-search-app .window-content {
-  padding: 0.5rem;
+/* Core sets pointer-events: none on the chat sidebar and re-enables it only for its own parts. */
+#chat .chat-search-bar,
+#chat .chat-search-results {
+  pointer-events: all;
 }
 
-.chat-search-root {
-  height: 100%;
+#chat .chat-search-bar {
+  flex: 0 0 auto;
+  width: 100%;
+  padding: 0 var(--sidebar-padding, 8px);
+}
+
+#chat .chat-search-results,
+#chat.chat-search-active .chat-scroll:not(.chat-search-results),
+#chat.chat-search-active .jump-to-bottom {
+  display: none;
+}
+
+#chat.chat-search-active .chat-search-results {
+  display: block;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  overflow-y: auto;
+}
+
+.chat-search-results > .chat-search-more,
+.chat-search-results > .chat-search-empty {
+  direction: ltr;
+  display: block;
+  width: calc(100% - 16px);
+  margin: 4px 8px;
+}
+
+.chat-search-results > .chat-search-empty {
+  padding: 2rem 0;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.chat-search-results > [hidden] {
+  display: none;
+}
+
+#chat-search-filters .window-content {
+  padding: 0.5rem 0.75rem 0.75rem;
 }
 
 @keyframes chat-search-flash {

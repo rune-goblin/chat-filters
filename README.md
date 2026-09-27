@@ -1,46 +1,55 @@
 # Chat Search
 
-A Foundry VTT v14 module that lets the GM search and filter the whole chat log.
+A Foundry VTT v14 module that lets the GM search and filter the chat log in place.
 
-- **Search** message text, flavor, speaker and roll formulas. All words must match; wrap a
-  phrase in `"double quotes"` to match it exactly.
-- **Filter** by player, speaker, visibility (public, whisper, blind), type (roll or message)
-  and time range. Pick several values in one filter to match any of them; filters combine.
-- **Jump** to a result: click it and the sidebar scrolls to the message and flashes it,
-  loading older messages as needed.
-- **Live**: results update as messages arrive, change or get deleted.
+- **Search bar** at the top of the chat sidebar. Typing searches message text, flavor, speaker
+  and roll formulas. All words must match; wrap a phrase in `"double quotes"` to match it
+  exactly. <kbd>Esc</kbd> clears it; <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> focuses it.
+- **Autofill.** As you type, the bar suggests matching filters with their message counts, e.g.
+  `spe` offers *Type: Spell*. <kbd>↑</kbd>/<kbd>↓</kbd> then <kbd>Enter</kbd> or <kbd>Tab</kbd>
+  (or a click) turns it into a filter chip under the bar. `facet:value` narrows the list
+  (`type:`, `check:recov`, `item:fire`). <kbd>Backspace</kbd> in an empty box removes the last chip.
+- **Filters button** beside it opens a filters dialog: time range, player, speaker, visibility
+  (public, whisper, blind) and type (roll, message, spell). Pick several values in one filter
+  to match any of them; filters combine. The button shows how many filters are on.
+- **Filtered log.** While a search or filter is active, the chat log shows only the matching
+  messages, rendered as normal chat cards, newest at the bottom. "Show older matches" loads more.
+  Right-click a message and choose **Show in full chat log** to clear the search and jump to it.
+- **Live**: matches update as messages arrive, change or get deleted.
 
-Open it from the magnifying-glass button beside Export and Clear in the chat controls, with
-<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd>, or from the console:
-`game.modules.get('chat-search').api.open()`. Only GMs can open it.
+GM only.
 
 ## Systems
 
 The search core works under any system. A system adapter adds filters built from the data
 that system stores on its messages.
 
-- **Pathfinder 2e** (`src/adapters/pf2e.ts`) adds roll type, degree of success, target,
-  item or spell, damage type and trait, read from `flags.pf2e`.
+- **Pathfinder 2e** (`src/adapters/pf2e.ts`) adds **Spell** to Type (spell cards and any roll
+  from a spell) plus roll type, degree of success, target, item or spell, damage type and
+  trait filters, read from `flags.pf2e`.
 
 To support another system, write a `SystemAdapter` that lists `FacetDef`s and register it in
-`src/adapters/index.ts`.
+`src/adapters/index.ts`. An adapter facet that reuses a core key adds values to that facet.
 
 ## Layout
 
 ```
-src/index.ts                 hooks, keybinding, chat button, public api
-src/search/                  system-agnostic core
-  types.ts                   MessageRecord, FacetDef, SystemAdapter, SearchQuery
-  text.ts                    HTML → text, query terms, highlighted snippets
-  filter.ts                  filterRecords, facetOptions (pure; unit-tested)
-  records.ts                 ChatMessage → MessageRecord, core facets
-  index.svelte.ts            live index kept in sync by chat-message hooks
-src/adapters/                per-system facets (pf2e.ts)
-src/ui/ChatSearchApp.ts      ApplicationV2 shell
-src/ui/ChatSearch.svelte     search window
-src/ui/reveal.ts             scroll the chat log to a message
-src/ui/chat-button.ts        chat-controls button
-src/tests/unit/              vitest specs
+src/index.ts                  hooks, keybinding, context-menu entry, public api
+src/search/                   system-agnostic core
+  types.ts                    MessageRecord, FacetDef, SystemAdapter, SearchQuery
+  text.ts                     HTML → text, query terms
+  filter.ts                   filterRecords, facetOptions (pure; unit-tested)
+  records.ts                  ChatMessage → MessageRecord, core facets
+  index.svelte.ts             live index kept in sync by chat-message hooks
+  state.svelte.ts             shared query state and results
+  suggest.ts                  autofill matching (pure; unit-tested)
+src/adapters/                 per-system facets (pf2e.ts), mergeFacets
+src/ui/inline.ts              mounts the bar and results panel into the chat sidebar
+src/ui/SearchBar.svelte       search input, autofill, filter chips, filters button
+src/ui/filtered-log.svelte.ts renders matching messages in place of the log
+src/ui/FiltersApp.ts          ApplicationV2 shell for Filters.svelte
+src/ui/reveal.ts              scroll the full log to a message
+src/tests/unit/               vitest specs
 ```
 
 ## Develop

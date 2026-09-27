@@ -8,8 +8,10 @@ interface Pf2eFlags {
     outcome?: string | null;
     target?: { actor?: string; token?: string } | null;
     traits?: string[];
+    options?: string[];
   } | null;
-  origin?: { uuid?: string } | null;
+  origin?: { uuid?: string; type?: string } | null;
+  casting?: object | null;
   damageRoll?: { types?: Record<string, unknown>; traits?: string[] } | null;
 }
 
@@ -33,8 +35,18 @@ function humanize(slug: string): string {
   return slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function pf2eConfig(dictionary: string): Record<string, string> | undefined {
-  return (CONFIG as unknown as { PF2E?: Record<string, Record<string, string>> }).PF2E?.[dictionary];
+function pf2eConfig<T = string>(dictionary: string): Record<string, T> | undefined {
+  return (CONFIG as unknown as { PF2E?: Record<string, Record<string, T>> }).PF2E?.[dictionary];
+}
+
+const STATISTIC_OPTION = /^check:statistic:(?!base:)(.+)$/;
+
+function checkLabel(slug: string): string {
+  const key =
+    pf2eConfig<{ label: string }>('skills')?.[slug]?.label ??
+    pf2eConfig('saves')?.[slug] ??
+    `${MODULE_ID}.pf2e.check.${slug}`;
+  return localizeOr(key, humanize(slug));
 }
 
 const defaultResolver: NameResolver = (uuid) =>
@@ -53,6 +65,15 @@ export function createPf2eAdapter(resolveName: NameResolver = defaultResolver): 
     systemId: 'pf2e',
     facets: [
       {
+        key: 'kind',
+        label: `${MODULE_ID}.facet.kind`,
+        values: (m) => {
+          const flags = pf2e(m);
+          const isSpell = flags.origin?.type === 'spell' || !!flags.casting || flags.context?.type === 'spell-cast';
+          return isSpell ? ['spell'] : [];
+        },
+      },
+      {
         key: 'pf2e.rollType',
         label: `${MODULE_ID}.pf2e.facet.rollType`,
         values: (m) => {
@@ -60,6 +81,15 @@ export function createPf2eAdapter(resolveName: NameResolver = defaultResolver): 
           return type ? [type] : [];
         },
         valueLabel: (v) => localizeOr(`${MODULE_ID}.pf2e.rollType.${v}`, humanize(v)),
+      },
+      {
+        key: 'pf2e.check',
+        label: `${MODULE_ID}.pf2e.facet.check`,
+        values: (m) => {
+          const options = pf2e(m).context?.options ?? [];
+          return options.flatMap((o) => STATISTIC_OPTION.exec(o)?.[1] ?? []);
+        },
+        valueLabel: checkLabel,
       },
       {
         key: 'pf2e.outcome',

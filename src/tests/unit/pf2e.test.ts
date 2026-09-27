@@ -60,3 +60,42 @@ describe('pf2e adapter', () => {
     expect(facet('pf2e.item').values({ flags: { pf2e: { origin: { uuid: 'Actor.gone.Item.x' } } } })).toEqual([]);
   });
 });
+
+describe('pf2e spell kind', () => {
+  const kind = facet('kind');
+
+  it('tags spell cards, casts and spell rolls as spell', () => {
+    expect(kind.values({ flags: { pf2e: { origin: { type: 'spell' } } } })).toEqual(['spell']);
+    expect(kind.values({ flags: { pf2e: { casting: { id: 'x' } } } })).toEqual(['spell']);
+    expect(kind.values({ flags: { pf2e: { context: { type: 'spell-cast' } } } })).toEqual(['spell']);
+  });
+
+  it('leaves weapon strikes alone', () => {
+    expect(kind.values(attack)).toEqual([]);
+  });
+});
+
+describe('pf2e check facet', () => {
+  const check = facet('pf2e.check');
+
+  it('reads the rolled statistic from the stored roll options', () => {
+    const recovery = {
+      flags: {
+        pf2e: {
+          context: {
+            type: 'flat-check',
+            options: ['check:type:flat', 'check:statistic:dying-recovery', 'self:condition:dying'],
+          },
+        },
+      },
+    };
+    expect(check.values(recovery)).toEqual(['dying-recovery']);
+  });
+
+  it('ignores the base-statistic option', () => {
+    const save = {
+      flags: { pf2e: { context: { options: ['check:statistic:reflex', 'check:statistic:base:reflex'] } } },
+    };
+    expect(check.values(save)).toEqual(['reflex']);
+  });
+});

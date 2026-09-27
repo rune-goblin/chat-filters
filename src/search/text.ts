@@ -30,36 +30,3 @@ export function parseTerms(query: string): string[] {
   }
   return terms;
 }
-
-export interface Segment {
-  text: string;
-  hit: boolean;
-}
-
-/**
- * Cuts `text` to about `length` characters around the first term match and marks every
- * term occurrence inside that window.
- */
-export function snippet(text: string, terms: string[], length = 180): Segment[] {
-  const lower = text.toLowerCase();
-  const first = terms.reduce((best, term) => {
-    const at = lower.indexOf(term);
-    return at >= 0 && (best < 0 || at < best) ? at : best;
-  }, -1);
-
-  let start = 0;
-  if (first > length / 3) start = first - Math.floor(length / 3);
-  const end = Math.min(text.length, start + length);
-  const windowText = (start > 0 ? '…' : '') + text.slice(start, end) + (end < text.length ? '…' : '');
-  if (!terms.length) return [{ text: windowText, hit: false }];
-
-  const pattern = new RegExp(`(${terms.map(escapeRegExp).join('|')})`, 'gi');
-  return windowText
-    .split(pattern)
-    .filter(Boolean)
-    .map((part) => ({ text: part, hit: terms.includes(part.toLowerCase()) }));
-}
-
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}

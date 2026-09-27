@@ -4,7 +4,8 @@ import type { FacetDef, MessageRecord } from './types';
 
 /** Live, newest-first index of the chat messages the current user can see. */
 export class ChatIndex {
-  readonly facets: FacetDef[] = activeFacets();
+  // Resolved on connect: the active system is unknown when this module is first imported.
+  facets = $state.raw<FacetDef[]>([]);
   records = $state.raw<MessageRecord[]>([]);
 
   #cache = new Map<string, MessageRecord>();
@@ -12,6 +13,7 @@ export class ChatIndex {
   #refresh = foundry.utils.debounce(() => this.#build(), 150);
 
   connect(): void {
+    this.facets = activeFacets();
     this.#build();
     const invalidate = (message: ChatMessage) => {
       this.#cache.delete(message.id!);

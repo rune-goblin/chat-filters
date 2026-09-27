@@ -1,13 +1,10 @@
 {
   "chat-search": {
     "title": "Chat Search",
-    "open": "Search Chat",
-    "keybinding": "Open Chat Search",
-    "placeholder": "Search messages… use \"quotes\" for phrases",
+    "keybinding": "Focus chat search",
+    "placeholder": "Search chat, or type a filter like \"spell\"",
     "any": "Any",
-    "remove": "Remove filter",
-    "clear": "Clear all",
-    "more": "Show more",
+    "more": "Show older matches",
     "empty": "No messages match.",
     "count": "{shown} of {total} messages",
     "notFound": "That message is no longer in the chat log.",
@@ -31,7 +28,8 @@
     },
     "kind": {
       "roll": "Roll",
-      "message": "Message"
+      "message": "Message",
+      "spell": "Spell"
     },
     "pf2e": {
       "facet": {
@@ -40,7 +38,8 @@
         "target": "Target",
         "item": "Item or spell",
         "damageType": "Damage type",
-        "trait": "Trait"
+        "trait": "Trait",
+        "check": "Check"
       },
       "rollType": {
         "attack-roll": "Attack",
@@ -63,7 +62,18 @@
         "success": "Success",
         "failure": "Failure",
         "criticalFailure": "Critical failure"
+      },
+      "check": {
+        "dying-recovery": "Recovery check (dying)",
+        "pd-recovery": "Persistent damage recovery",
+        "perception": "Perception"
       }
-    }
+    },
+    "filters": "Chat filters",
+    "matches": "Matching messages",
+    "clear": "Clear search and filters",
+    "clearFilters": "Clear filters",
+    "remove": "Remove filter",
+    "showInLog": "Show in full chat log"
   }
 }
