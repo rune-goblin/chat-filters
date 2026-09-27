@@ -19,7 +19,7 @@ import { ownerFromOrigin, authorName, isValidOwner } from './git-identity.ts';
 
 const repo = process.cwd();
 const home = homedir();
-const ID = 'chat-search';
+const ID = 'chat-filters';
 
 const CONFIG = join(repo, '.dev-paths.json');
 

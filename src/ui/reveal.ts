@@ -1,4 +1,4 @@
-const FLASH = 'chat-search-flash';
+const FLASH = 'chat-filters-flash';
 
 /**
  * Scrolls the sidebar chat log to a message and flashes it. The log renders messages in

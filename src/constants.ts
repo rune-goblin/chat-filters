@@ -1,1 +1,1 @@
-export const MODULE_ID = 'chat-search';
+export const MODULE_ID = 'chat-filters';

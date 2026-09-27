@@ -1,22 +1,22 @@
 /* Core sets pointer-events: none on the chat sidebar and re-enables it only for its own parts. */
-#chat .chat-search-bar,
-#chat .chat-search-results {
+#chat .chat-filters-bar,
+#chat .chat-filters-results {
   pointer-events: all;
 }
 
-#chat .chat-search-bar {
+#chat .chat-filters-bar {
   flex: 0 0 auto;
   width: 100%;
   padding: 0 var(--sidebar-padding, 8px);
 }
 
-#chat .chat-search-results,
-#chat.chat-search-active .chat-scroll:not(.chat-search-results),
-#chat.chat-search-active .jump-to-bottom {
+#chat .chat-filters-results,
+#chat.chat-filters-active .chat-scroll:not(.chat-filters-results),
+#chat.chat-filters-active .jump-to-bottom {
   display: none;
 }
 
-#chat.chat-search-active .chat-search-results {
+#chat.chat-filters-active .chat-filters-results {
   display: block;
   flex: 1;
   min-height: 0;
@@ -24,29 +24,29 @@
   overflow-y: auto;
 }
 
-.chat-search-results > .chat-search-more,
-.chat-search-results > .chat-search-empty {
+.chat-filters-results > .chat-filters-more,
+.chat-filters-results > .chat-filters-empty {
   direction: ltr;
   display: block;
   width: calc(100% - 16px);
   margin: 4px 8px;
 }
 
-.chat-search-results > .chat-search-empty {
+.chat-filters-results > .chat-filters-empty {
   padding: 2rem 0;
   text-align: center;
   color: var(--color-text-secondary);
 }
 
-.chat-search-results > [hidden] {
+.chat-filters-results > [hidden] {
   display: none;
 }
 
-#chat-search-filters .window-content {
+#chat-filters-filters .window-content {
   padding: 0.5rem 0.75rem 0.75rem;
 }
 
-@keyframes chat-search-flash {
+@keyframes chat-filters-flash {
   0%,
   60% {
     box-shadow: 0 0 0 2px var(--color-warm-2, #ee9b3a), 0 0 12px var(--color-warm-2, #ee9b3a);
@@ -56,6 +56,6 @@
   }
 }
 
-.chat-log .message.chat-search-flash {
-  animation: chat-search-flash 2s ease-out;
+.chat-log .message.chat-filters-flash {
+  animation: chat-filters-flash 2s ease-out;
 }

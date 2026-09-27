@@ -36,7 +36,7 @@ jobs:
 
       - name: Build release zip
         run: |
-          zip -r chat-search.zip \
+          zip -r chat-filters.zip \
             module.json LICENSE README.md dist lang packs assets \
             -x "packs/_source/*" \
             -x "packs/*/LOCK" -x "packs/*/LOG" -x "packs/*/LOG.old" -x "packs/*/*.log" \
@@ -46,6 +46,6 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           files: |
-            chat-search.zip
+            chat-filters.zip
             module.json
           generate_release_notes: true

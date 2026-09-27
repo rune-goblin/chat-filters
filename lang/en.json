@@ -1,7 +1,7 @@
 {
-  "chat-search": {
-    "title": "Chat Search",
-    "keybinding": "Focus chat search",
+  "chat-filters": {
+    "title": "Chat Filters",
+    "keybinding": "Focus chat filters",
     "placeholder": "Search chat, or type a filter like \"spell\"",
     "any": "Any",
     "more": "Show older matches",

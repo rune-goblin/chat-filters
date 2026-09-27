@@ -1,7 +1,7 @@
-# chat-search — project rules
+# chat-filters — project rules
 
 A Foundry VTT v14 module that lets the GM search and filter the chat log. A scripted esmodule
-(`src/`) built with TypeScript + Svelte 5 + Vite (`src/index.ts` → `dist/chat-search.{js,css}`);
+(`src/`) built with TypeScript + Svelte 5 + Vite (`src/index.ts` → `dist/chat-filters.{js,css}`);
 it registers no packs. `module.json` is the manifest. Architecture: README "Layout".
 
 **The Foundry API, compendium packs, Svelte-in-ApplicationV2, the Vite build, and
@@ -64,15 +64,15 @@ Code style: global `~/.claude/CLAUDE.md` — comment only the non-obvious *why*.
 
 ## This repo's specifics
 
-- Module id `chat-search`; flags, settings, the socket channel (`module.<id>`),
+- Module id `chat-filters`; flags, settings, the socket channel (`module.<id>`),
   and pack names (`<id>.<pack>`) all key off it. Use `const MODULE_ID`.
 - Public API: `game.modules.get(MODULE_ID).api = {...}` (cast — `api` isn't typed on `Module`).
 - `src/fvtt-config.d.ts` is the fvtt-types augmentation point: settings keys today, document
   or system types later. It needs its `export {}` to stay a module — without it the
   `declare module` becomes an ambient *replacement* instead of an augmentation.
-- Strings: `lang/en.json` under `chat-search.*`; `game.i18n.localize/format`. No hard-coded strings.
+- Strings: `lang/en.json` under `chat-filters.*`; `game.i18n.localize/format`. No hard-coded strings.
 - compatibility `minimum "14"`, `verified "14"`; MIT license; org `rune-goblin`.
-- Release: tag `vX.Y.Z` → `release.yml` stamps the version, type-checks, builds, publishes `module.json` + `chat-search.zip` (zip ships `dist lang packs assets` — must include the art).
+- Release: tag `vX.Y.Z` → `release.yml` stamps the version, type-checks, builds, publishes `module.json` + `chat-filters.zip` (zip ships `dist lang packs assets` — must include the art).
 - **System coupling lives only in `src/adapters/`.** The search core (`src/search/`) must stay
   system-agnostic; a system adds facets through a `SystemAdapter` chosen by `game.system.id`.
 - Search `game.messages`, never the rendered log: ChatLog renders messages in batches, so older

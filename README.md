@@ -1,4 +1,4 @@
-# Chat Search
+# Chat Filters
 
 A Foundry VTT v14 module that lets the GM search and filter the chat log in place.
 

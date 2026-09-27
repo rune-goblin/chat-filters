@@ -1,6 +1,6 @@
 {
-  "id": "chat-search",
-  "title": "Chat Search",
+  "id": "chat-filters",
+  "title": "Chat Filters",
   "description": "Search and filter the chat log. Adds Pathfinder 2e filters for roll type, degree of success, target and more.",
   "version": "0.1.0",
   "license": "MIT",
@@ -10,10 +10,10 @@
     }
   ],
   "esmodules": [
-    "dist/chat-search.js"
+    "dist/chat-filters.js"
   ],
   "styles": [
-    "dist/chat-search.css"
+    "dist/chat-filters.css"
   ],
   "languages": [
     {
@@ -27,7 +27,7 @@
     "minimum": "14",
     "verified": "14"
   },
-  "url": "https://github.com/rune-goblin/chat-search",
-  "manifest": "https://github.com/rune-goblin/chat-search/releases/latest/download/module.json",
-  "download": "https://github.com/rune-goblin/chat-search/releases/latest/download/chat-search.zip"
+  "url": "https://github.com/rune-goblin/chat-filters",
+  "manifest": "https://github.com/rune-goblin/chat-filters/releases/latest/download/module.json",
+  "download": "https://github.com/rune-goblin/chat-filters/releases/latest/download/chat-filters.zip"
 }
