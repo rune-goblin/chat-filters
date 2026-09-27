@@ -11,14 +11,11 @@ interface ModuleApi {
   search: typeof search;
 }
 
-const isGM = () => game.ready && game.user.isGM;
-
 Hooks.once('init', () => {
   const { CONTROL, SHIFT } = foundry.helpers.interaction.KeyboardManager.MODIFIER_KEYS;
   game.keybindings?.register(MODULE_ID, 'focus', {
     name: `${MODULE_ID}.keybinding`,
     editable: [{ key: 'KeyF', modifiers: [CONTROL, SHIFT] }],
-    restricted: true,
     onDown: () => {
       focusSearch();
       return true;
@@ -27,11 +24,10 @@ Hooks.once('init', () => {
 });
 
 Hooks.on('renderChatLog', (app, html) => {
-  if (isGM() && !(app as { isPopout?: boolean }).isPopout) attachToChat(html as HTMLElement);
+  if (game.ready && !(app as { isPopout?: boolean }).isPopout) attachToChat(html as HTMLElement);
 });
 
 Hooks.on('getChatMessageContextOptions', (_app, options) => {
-  if (!isGM()) return;
   options.push({
     name: `${MODULE_ID}.showInLog`,
     icon: 'fa-solid fa-arrows-to-eye',
@@ -51,7 +47,6 @@ Hooks.once('ready', () => {
   const api: ModuleApi = { version, focus: focusSearch, search };
   // `api` is the Foundry convention for a public API, but isn't a typed field on Module.
   if (module) (module as { api?: ModuleApi }).api = api;
-  if (!isGM()) return;
   search.index.connect();
   if (ui.chat?.element) attachToChat(ui.chat.element);
 });

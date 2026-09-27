@@ -1,6 +1,6 @@
 # Chat Filters
 
-A Foundry VTT v14 module that lets the GM search and filter the chat log in place.
+A Foundry VTT v14 module that lets GMs and players search and filter the chat log in place.
 
 - **Search bar** at the top of the chat sidebar. Typing searches message text, flavor, speaker
   and roll formulas. All words must match; wrap a phrase in `"double quotes"` to match it
@@ -17,7 +17,9 @@ A Foundry VTT v14 module that lets the GM search and filter the chat log in plac
   Right-click a message and choose **Show in full chat log** to clear the search and jump to it.
 - **Live**: matches update as messages arrive, change or get deleted.
 
-GM only.
+**Players** search only what their own cards show. The index skips whispers to others, keeps
+just the header of a blind roll, and drops anything the system hides from players (PF2e's
+`data-visibility="gm"` DCs, hidden check outcomes, token names players can't see).
 
 ## Systems
 
@@ -26,10 +28,13 @@ that system stores on its messages.
 
 - **Pathfinder 2e** (`src/adapters/pf2e.ts`) adds **Spell** to Type (spell cards and any roll
   from a spell) plus roll type, degree of success, target, item or spell, damage type and
-  trait filters, read from `flags.pf2e`.
+  trait filters, read from `flags.pf2e`. For players its `redactor` strips the content PF2e
+  hides and swaps hidden token names for the author, mirroring `UserVisibilityPF2e`.
 
 To support another system, write a `SystemAdapter` that lists `FacetDef`s and register it in
-`src/adapters/index.ts`. An adapter facet that reuses a core key adds values to that facet.
+`src/adapters/index.ts`. An adapter facet that reuses a core key adds values to that facet. If
+the system hides parts of a card from players, give the adapter a `redactor` and gate any facet
+that reads hidden data, or player searches will match text their cards never show.
 
 ## Layout
 

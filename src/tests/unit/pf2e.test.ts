@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { createPf2eAdapter } from '@/adapters/pf2e';
+import { createPf2eAdapter, playerSeesElement, type Pf2eViewer } from '@/adapters/pf2e';
 
 const names: Record<string, string> = {
   'Scene.s.Token.t': 'Goblin Warrior',
   'Actor.a': 'Goblin (base)',
   'Actor.v.Item.i': 'Longsword',
 };
-const adapter = createPf2eAdapter((uuid) => names[uuid] ?? null);
+const adapter = createPf2eAdapter(
+  (uuid) => names[uuid] ?? null,
+  () => ({ isGM: true, showResults: false, tokenNames: true }),
+);
 const facet = (key: string) => adapter.facets.find((f) => f.key === key)!;
 
 const attack = {
@@ -97,5 +100,39 @@ describe('pf2e check facet', () => {
       flags: { pf2e: { context: { options: ['check:statistic:reflex', 'check:statistic:base:reflex'] } } },
     };
     expect(check.values(save)).toEqual(['reflex']);
+  });
+});
+
+describe('pf2e player view', () => {
+  const player = (settings: Partial<Pf2eViewer> = {}) =>
+    createPf2eAdapter((uuid) => names[uuid] ?? null, () => ({ isGM: false, showResults: true, tokenNames: true, ...settings }));
+
+  it('hides the degree of success when the world hides check results', () => {
+    const outcome = (a: ReturnType<typeof player>) => a.facets.find((f) => f.key === 'pf2e.outcome')!;
+    expect(outcome(player()).values(attack)).toEqual(['criticalSuccess']);
+    expect(outcome(player({ showResults: false })).values(attack)).toEqual([]);
+  });
+
+  it('shows the author in place of a token name players cannot see', () => {
+    const { speaker } = player().redactor!;
+    const hidden = { flags: {}, alias: 'Goblin Boss', author: { name: 'GM' }, token: { name: 'Goblin Boss', playersCanSeeName: false } };
+    expect(speaker!(hidden)).toBe('GM');
+    expect(speaker!({ ...hidden, token: { name: 'Goblin Boss', playersCanSeeName: true } })).toBeNull();
+    expect(player({ tokenNames: false }).redactor!.speaker!(hidden)).toBeNull();
+  });
+
+  it('drops gm and none elements and keeps public ones', () => {
+    expect(playerSeesElement({ visibility: 'gm' }, { flags: {} })).toBe(false);
+    expect(playerSeesElement({ visibility: 'none' }, { flags: {} })).toBe(false);
+    expect(playerSeesElement({ visibility: 'all' }, { flags: {} })).toBe(true);
+  });
+
+  it('shows an owner element for a player-owned actor only', () => {
+    const pc = { flags: {}, actor: { hasPlayerOwner: true } };
+    const npc = { flags: {}, actor: { hasPlayerOwner: false } };
+    expect(playerSeesElement({ visibility: 'owner' }, pc)).toBe(true);
+    expect(playerSeesElement({ visibility: 'owner' }, npc)).toBe(false);
+    expect(playerSeesElement({ visibility: 'owner', whose: 'opposer' }, { ...pc, target: { actor: { hasPlayerOwner: false } } })).toBe(false);
+    expect(playerSeesElement({ visibility: 'owner', action: 'roll' }, { flags: {}, actor: { isOwner: true } })).toBe(true);
   });
 });

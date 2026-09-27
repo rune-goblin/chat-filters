@@ -7,6 +7,10 @@ declare global {
   var game: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, no-var
   var ui: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, no-var
+  var foundry: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, no-var
+  var CONST: any;
 }
 
 export const MODULE_ID = 'chat-filters';
@@ -14,7 +18,11 @@ export const MODULE_ID = 'chat-filters';
 /** Drive Foundry's /join screen to log this context in as a specific user. */
 export async function joinAs(page: Page, userId: string, password = ''): Promise<void> {
   await page.goto('/join');
-  await page.selectOption('select[name="userid"]', userId);
+  // v14's join form takes a typed user name; v13 had a `userid` select.
+  await page.waitForFunction(() => !!(window as any).game?.users?.size, undefined, { timeout: 30_000 });
+  const name = await page.evaluate((id) => (window as any).game.users.get(id)?.name, userId);
+  if (!name) throw new Error(`No user ${userId} on /join`);
+  await page.fill('input[name="username"]', name);
   if (password) await page.fill('input[name="password"]', password);
   await Promise.all([
     page.waitForURL(/\/game\b/, { timeout: 30_000 }),

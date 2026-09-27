@@ -1,19 +1,22 @@
-import { activeFacets } from '@/adapters';
+import { activeView } from '@/adapters';
 import { buildRecord } from './records';
-import type { FacetDef, MessageRecord } from './types';
+import type { FacetDef, MessageRecord, RecordView } from './types';
 
 /** Live, newest-first index of the chat messages the current user can see. */
 export class ChatIndex {
   // Resolved on connect: the active system is unknown when this module is first imported.
   facets = $state.raw<FacetDef[]>([]);
   records = $state.raw<MessageRecord[]>([]);
+  #view: RecordView | undefined;
 
   #cache = new Map<string, MessageRecord>();
   #hooks: [string, number][] = [];
   #refresh = foundry.utils.debounce(() => this.#build(), 150);
 
   connect(): void {
-    this.facets = activeFacets();
+    if (!game.ready) return;
+    this.#view = activeView(game.user.isGM);
+    this.facets = this.#view.facets;
     this.#build();
     const invalidate = (message: ChatMessage) => {
       this.#cache.delete(message.id!);
@@ -32,12 +35,13 @@ export class ChatIndex {
   }
 
   #build(): void {
-    if (!game.ready) return;
+    if (!game.ready || !this.#view) return;
+    const view = this.#view;
     const next: MessageRecord[] = [];
     const live = new Map<string, MessageRecord>();
     for (const message of game.messages.contents) {
       if (!message.visible) continue;
-      const record = this.#cache.get(message.id!) ?? buildRecord(message, this.facets);
+      const record = this.#cache.get(message.id!) ?? buildRecord(message, view);
       live.set(record.id, record);
       next.push(record);
     }

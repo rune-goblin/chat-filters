@@ -1,6 +1,6 @@
 # chat-filters — project rules
 
-A Foundry VTT v14 module that lets the GM search and filter the chat log. A scripted esmodule
+A Foundry VTT v14 module that lets GMs and players search and filter the chat log. A scripted esmodule
 (`src/`) built with TypeScript + Svelte 5 + Vite (`src/index.ts` → `dist/chat-filters.{js,css}`);
 it registers no packs. `module.json` is the manifest. Architecture: README "Layout".
 
@@ -77,8 +77,10 @@ Code style: global `~/.claude/CLAUDE.md` — comment only the non-obvious *why*.
   system-agnostic; a system adds facets through a `SystemAdapter` chosen by `game.system.id`.
 - Search `game.messages`, never the rendered log: ChatLog renders messages in batches, so older
   ones are absent from the DOM. `src/ui/reveal.ts` renders batches until the target exists.
-- GM-only by design. PF2e hides DCs and modifier breakdowns in message HTML with
-  `data-visibility="gm"`; opening search to players would leak them through `content`.
+- Players search too, so the index must hold only what the current user's card shows: a match
+  on hidden text tells the player the text is there. `buildRecord` keeps only `header` facets for
+  blind rolls (`!isContentVisible`); a system that hides card content (PF2e `data-visibility`,
+  hidden token names, check outcomes) supplies a `Redactor` and gates its own facets.
 
 ## Gotchas
 

@@ -15,8 +15,33 @@ interface Pf2eFlags {
   damageRoll?: { types?: Record<string, unknown>; traits?: string[] } | null;
 }
 
+interface OwnedDoc {
+  isOwner?: boolean;
+  hasPlayerOwner?: boolean;
+}
+
+interface NamedToken {
+  name?: string;
+  displayName?: number;
+  playersCanSeeName?: boolean;
+  actor?: OwnedDoc | null;
+}
+
 export interface FlaggedMessage {
   flags: object;
+  alias?: string;
+  author?: { name?: string } | null;
+  isOwner?: boolean;
+  actor?: (OwnedDoc & { prototypeToken?: NamedToken }) | null;
+  token?: NamedToken | null;
+  target?: { actor?: OwnedDoc | null } | null;
+}
+
+/** The PF2e metagame settings that decide what players see; GMs see everything. */
+export interface Pf2eViewer {
+  isGM: boolean;
+  showResults: boolean;
+  tokenNames: boolean;
 }
 
 type NameResolver = (uuid: string) => string | null;
@@ -49,10 +74,65 @@ function checkLabel(slug: string): string {
   return localizeOr(key, humanize(slug));
 }
 
-const defaultResolver: NameResolver = (uuid) =>
-  (foundry.utils.fromUuidSync(uuid) as { name?: string } | null)?.name ?? null;
+const currentViewer = (): Pf2eViewer => {
+  const settings = (game as { pf2e?: { settings?: Pf2eSettings } }).pf2e?.settings;
+  return {
+    isGM: !!game.user?.isGM,
+    showResults: settings?.metagame?.results ?? true,
+    tokenNames: settings?.tokens?.nameVisibility ?? false,
+  };
+};
 
-export function createPf2eAdapter(resolveName: NameResolver = defaultResolver): SystemAdapter<FlaggedMessage> {
+interface Pf2eSettings {
+  metagame?: { results?: boolean };
+  tokens?: { nameVisibility?: boolean };
+}
+
+/** Mirrors TokenDocumentPF2e#playersCanSeeName, which a prototype token lacks. */
+export function playersCanSeeName(token: NamedToken): boolean {
+  if (token.playersCanSeeName !== undefined) return token.playersCanSeeName;
+  const { ALWAYS, HOVER } = CONST.TOKEN_DISPLAY_MODES;
+  return token.displayName === ALWAYS || token.displayName === HOVER || !!token.actor?.hasPlayerOwner;
+}
+
+function resolverFor(viewer: () => Pf2eViewer): NameResolver {
+  return (uuid) => {
+    const doc = foundry.utils.fromUuidSync(uuid) as (NamedToken & OwnedDoc & { documentName?: string; prototypeToken?: NamedToken }) | null;
+    if (!doc?.name) return null;
+    const { isGM, tokenNames } = viewer();
+    if (isGM || !tokenNames) return doc.name;
+    const token = doc.documentName === 'Actor' ? { ...doc.prototypeToken, actor: doc } : doc;
+    return playersCanSeeName(token) ? doc.name : null;
+  };
+}
+
+/**
+ * Mirrors UserVisibilityPF2e.process for a player: `gm` and `none` elements go, and an `owner`
+ * element stays only when PF2e would show it to this player.
+ */
+export function playerSeesElement(data: DOMStringMap, message: FlaggedMessage): boolean {
+  const doc = message.actor ?? message;
+  switch (data.visibility) {
+    case 'gm':
+    case 'none':
+      return false;
+    case 'owner': {
+      if (data.action) return !!doc.isOwner;
+      const whose = data.whose ?? 'self';
+      if (whose === 'self') return !!message.actor?.hasPlayerOwner;
+      if (whose === 'opposer' && message.target) return !!message.target.actor?.hasPlayerOwner;
+      return !!doc.isOwner;
+    }
+    default:
+      return true;
+  }
+}
+
+export function createPf2eAdapter(
+  resolveName?: NameResolver,
+  viewer: () => Pf2eViewer = currentViewer,
+): SystemAdapter<FlaggedMessage> {
+  resolveName ??= resolverFor(viewer);
   const names = new Map<string, string | null>();
   const nameOf = (uuid: string | undefined): string[] => {
     if (!uuid) return [];
@@ -96,7 +176,8 @@ export function createPf2eAdapter(resolveName: NameResolver = defaultResolver): 
         label: `${MODULE_ID}.pf2e.facet.outcome`,
         values: (m) => {
           const outcome = pf2e(m).context?.outcome;
-          return outcome ? [outcome] : [];
+          const { isGM, showResults } = viewer();
+          return outcome && (isGM || showResults) ? [outcome] : [];
         },
         valueLabel: (v) => localizeOr(`${MODULE_ID}.pf2e.outcome.${v}`, humanize(v)),
       },
@@ -129,5 +210,19 @@ export function createPf2eAdapter(resolveName: NameResolver = defaultResolver): 
         valueLabel: (v) => localizeOr(pf2eConfig('actionTraits')?.[v], humanize(v)),
       },
     ],
+    redactor: {
+      speaker: (m) => {
+        if (!viewer().tokenNames) return null;
+        const token = m.token ?? (m.actor?.prototypeToken ? { ...m.actor.prototypeToken, actor: m.actor } : null);
+        const name = token?.name?.trim();
+        if (!token || !name || playersCanSeeName(token) || !m.alias?.includes(name)) return null;
+        return m.author?.name ?? game.i18n?.localize('USER.RoleGamemaster') ?? '';
+      },
+      content: (root, m) => {
+        for (const el of root.querySelectorAll<HTMLElement>('[data-visibility]')) {
+          if (!playerSeesElement(el.dataset, m)) el.remove();
+        }
+      },
+    },
   };
 }

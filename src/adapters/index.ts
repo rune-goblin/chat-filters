@@ -1,5 +1,5 @@
-import { CORE_FACETS } from '@/search/records';
-import type { FacetDef, SystemAdapter } from '@/search/types';
+import { coreFacets } from '@/search/records';
+import type { FacetDef, RecordView, SystemAdapter } from '@/search/types';
 import { createPf2eAdapter } from './pf2e';
 
 const ADAPTERS: Record<string, () => SystemAdapter> = {
@@ -22,13 +22,21 @@ export function mergeFacets<M>(core: readonly FacetDef<M>[], extra: readonly Fac
       ...base,
       values: (m) => [...base.values(m), ...facet.values(m)],
       valueLabel: base.valueLabel ?? facet.valueLabel,
+      header: base.header && facet.header,
     });
   }
   return [...merged.values()];
 }
 
-export function activeFacets(): FacetDef[] {
+/** Core facets plus the active system's, redacted to what a player's cards show unless `isGM`. */
+export function activeView(isGM: boolean): RecordView {
   const systemId = game.system?.id;
   const adapter = systemId ? ADAPTERS[systemId]?.() : undefined;
-  return mergeFacets(CORE_FACETS, adapter?.facets ?? []);
+  const redactor = isGM ? undefined : adapter?.redactor;
+  const speaker = (m: ChatMessage) => redactor?.speaker?.(m) ?? m.alias;
+  return {
+    facets: mergeFacets(coreFacets(speaker), adapter?.facets ?? []),
+    speaker,
+    redact: redactor?.content?.bind(redactor),
+  };
 }

@@ -21,11 +21,32 @@ export interface FacetDef<M = ChatMessage> {
   label: string;
   values(message: M): string[];
   valueLabel?(value: string): string;
+  /** Shown on the card even when its content is hidden, as on a blind roll. */
+  header?: boolean;
+}
+
+/**
+ * Hides from a player what their copy of a card hides. Facet `values` must do the same for
+ * anything a system hides; the index never applies a redactor for a GM.
+ */
+export interface Redactor<M = ChatMessage> {
+  /** The name the card header shows, or null to keep the message alias. */
+  speaker?(message: M): string | null;
+  /** Removes the elements of content or flavor HTML the card hides. */
+  content?(root: ParentNode, message: M): void;
 }
 
 export interface SystemAdapter<M = ChatMessage> {
   systemId: string;
   facets: FacetDef<M>[];
+  redactor?: Redactor<M>;
+}
+
+/** How the index turns a message into a record for the current user. */
+export interface RecordView {
+  facets: FacetDef[];
+  speaker(message: ChatMessage): string;
+  redact?(root: ParentNode, message: ChatMessage): void;
 }
 
 export type TimeRange = 'all' | 'hour' | 'today' | 'week';

@@ -21,6 +21,11 @@ describe('mergeFacets', () => {
     expect(kind.valueLabel?.('spell')).toBe('core:spell');
   });
 
+  it('keeps a merged facet off blind cards unless both sides are header facets', () => {
+    const header = mergeFacets([{ ...core[0], header: true }], extra);
+    expect(header.find((f) => f.key === 'kind')!.header).toBeFalsy();
+  });
+
   it('appends facets with new keys', () => {
     expect(merged.map((f) => f.key)).toEqual(['kind', 'pf2e.outcome']);
   });
