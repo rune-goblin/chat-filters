@@ -49,10 +49,21 @@ describe('timeFloor', () => {
 });
 
 describe('facetOptions', () => {
-  it('counts distinct values, most frequent first', () => {
+  it('counts distinct values, sorted alphabetically', () => {
     expect(facetOptions(records, 'speaker')).toEqual([
-      { value: 'Valeros', count: 2 },
-      { value: 'Ezren', count: 1 },
+      { value: 'Ezren', label: 'Ezren', count: 1 },
+      { value: 'Valeros', label: 'Valeros', count: 2 },
     ]);
+  });
+
+  it('sorts by display label, ignoring case and ordering numbers numerically', () => {
+    const labelled = [
+      record('a', '', { item: ['x'] }),
+      record('b', '', { item: ['y'] }),
+      record('c', '', { item: ['z'] }),
+      record('d', '', { item: ['z'] }),
+    ];
+    const label = (v: string) => ({ x: 'Strike 10', y: 'strike 2', z: 'Heal' })[v] ?? v;
+    expect(facetOptions(labelled, 'item', label).map((o) => o.label)).toEqual(['Heal', 'strike 2', 'Strike 10']);
   });
 });

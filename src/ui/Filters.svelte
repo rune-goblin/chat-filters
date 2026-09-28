@@ -12,7 +12,7 @@
 
   const facets = $derived(
     search.index.facets
-      .map((facet) => ({ facet, options: facetOptions(search.index.records, facet.key) }))
+      .map((facet) => ({ facet, options: facetOptions(search.index.records, facet.key, (v) => valueLabel(facet, v)) }))
       .filter(({ facet, options }) => options.length > 1 || search.facets[facet.key]?.length),
   );
 </script>
@@ -40,7 +40,7 @@
         <option value="">{t('any')}</option>
         {#each options as option (option.value)}
           <option value={option.value} disabled={search.facets[facet.key]?.includes(option.value)}>
-            {valueLabel(facet, option.value)} ({option.count})
+            {option.label} ({option.count})
           </option>
         {/each}
       </select>

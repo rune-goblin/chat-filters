@@ -20,10 +20,7 @@
     const entries = search.index.facets.map((facet) => ({
       key: facet.key,
       label: game.i18n?.localize(facet.label) ?? facet.label,
-      options: facetOptions(search.index.records, facet.key).map((o) => ({
-        ...o,
-        label: valueLabel(facet, o.value),
-      })),
+      options: facetOptions(search.index.records, facet.key, (v) => valueLabel(facet, v)),
     }));
     return suggestionRows(search.text, search.results.length, suggest(token.text, entries, search.facets));
   });
