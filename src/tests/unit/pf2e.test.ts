@@ -67,10 +67,16 @@ describe('pf2e adapter', () => {
 describe('pf2e spell kind', () => {
   const kind = facet('kind');
 
-  it('tags spell cards, casts and spell rolls as spell', () => {
+  it('tags a shared spell card and a cast card as spell', () => {
     expect(kind.values({ flags: { pf2e: { origin: { type: 'spell' } } } })).toEqual(['spell']);
-    expect(kind.values({ flags: { pf2e: { casting: { id: 'x' } } } })).toEqual(['spell']);
-    expect(kind.values({ flags: { pf2e: { context: { type: 'spell-cast' } } } })).toEqual(['spell']);
+    const cast = { origin: { type: 'spell' }, casting: { id: 'x' }, context: { type: 'spell-cast' } };
+    expect(kind.values({ flags: { pf2e: cast } })).toEqual(['spell']);
+  });
+
+  it('leaves the rolls and effects a spell produces untagged', () => {
+    for (const type of ['spell-attack-roll', 'damage-roll', 'saving-throw', 'self-effect']) {
+      expect(kind.values({ flags: { pf2e: { origin: { type: 'spell' }, context: { type } } } })).toEqual([]);
+    }
   });
 
   it('leaves weapon strikes alone', () => {

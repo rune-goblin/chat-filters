@@ -1,4 +1,4 @@
-import { test as base, type Page, type BrowserContext } from '@playwright/test';
+import { test as base, type Browser, type Page, type BrowserContext } from '@playwright/test';
 
 declare global {
   // Foundry's runtime globals on `window`. Declared `any` — specs reach into them loosely and
@@ -14,6 +14,20 @@ declare global {
 }
 
 export const MODULE_ID = 'chat-filters';
+
+/**
+ * Test clients skip the canvas. A large scene rendered without a GPU can hold `game.ready` past
+ * the wait, and the specs drive the sidebar, not the board. Client settings live in localStorage.
+ */
+export async function skipCanvas(target: BrowserContext | Page): Promise<void> {
+  await target.addInitScript(() => localStorage.setItem('core.noCanvas', 'true'));
+}
+
+export async function newFoundryContext(browser: Browser): Promise<BrowserContext> {
+  const ctx = await browser.newContext();
+  await skipCanvas(ctx);
+  return ctx;
+}
 
 /** Drive Foundry's /join screen to log this context in as a specific user. */
 export async function joinAs(page: Page, userId: string, password = ''): Promise<void> {
@@ -84,7 +98,7 @@ type WorkerFixtures = {
 export const test = base.extend<object, WorkerFixtures>({
   gmContext: [
     async ({ browser }, use) => {
-      const ctx = await browser.newContext();
+      const ctx = await newFoundryContext(browser);
       await use(ctx);
       await ctx.close();
     },

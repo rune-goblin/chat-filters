@@ -12,6 +12,20 @@ export interface Suggestion {
   count: number;
 }
 
+/** A dropdown row: keep the typed words as a text search, or turn them into a filter. */
+export type Row = { kind: 'text'; text: string; count: number } | ({ kind: 'filter' } & Suggestion);
+
+/**
+ * The filters, then the text search as a fallback, so the typed words can stay a plain text
+ * search. A `facet:value` query gets only filters; with no filter to choose, the dropdown stays
+ * closed.
+ */
+export function suggestionRows(query: string, textCount: number, suggestions: readonly Suggestion[]): Row[] {
+  const filters = suggestions.map((s) => ({ kind: 'filter' as const, ...s }));
+  if (!filters.length || currentToken(query)?.text.includes(':')) return filters;
+  return [...filters, { kind: 'text', text: query.trim(), count: textCount }];
+}
+
 export interface Token {
   text: string;
   start: number;

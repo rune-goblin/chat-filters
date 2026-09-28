@@ -5,9 +5,11 @@ A Foundry VTT v14 module that lets GMs and players search and filter the chat lo
 - **Search bar** at the top of the chat sidebar. Typing searches message text, flavor, speaker
   and roll formulas. All words must match; wrap a phrase in `"double quotes"` to match it
   exactly. <kbd>Esc</kbd> clears it; <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> focuses it.
-- **Autofill.** As you type, the bar suggests matching filters with their message counts, e.g.
-  `spe` offers *Type: Spell*. <kbd>↑</kbd>/<kbd>↓</kbd> then <kbd>Enter</kbd> or <kbd>Tab</kbd>
-  (or a click) turns it into a filter chip under the bar. `facet:value` narrows the list
+- **Autofill.** As you type, a dropdown offers matching filters with their message counts, then
+  the plain text search as a fallback. `fireball` offers *Item or spell: Fireball* (the card
+  and every roll or effect that came from it) above *Messages containing “fireball”* (every
+  message that mentions it); `spe` offers *Type: Spell*. <kbd>↑</kbd>/<kbd>↓</kbd> then
+  <kbd>Enter</kbd> or <kbd>Tab</kbd> (or a click) picks a row; a filter becomes a chip under the bar. `facet:value` narrows the list
   (`type:`, `check:recov`, `item:fire`). <kbd>Backspace</kbd> in an empty box removes the last chip.
 - **Filters button** beside it opens a filters dialog: time range, player, speaker, visibility
   (public, whisper, blind) and type (roll, message, spell). Pick several values in one filter
@@ -26,8 +28,8 @@ just the header of a blind roll, and drops anything the system hides from player
 The search core works under any system. A system adapter adds filters built from the data
 that system stores on its messages.
 
-- **Pathfinder 2e** (`src/adapters/pf2e.ts`) adds **Spell** to Type (spell cards and any roll
-  from a spell) plus roll type, degree of success, target, item or spell, damage type and
+- **Pathfinder 2e** (`src/adapters/pf2e.ts`) adds **Spell** to Type (the card a spell posts;
+  its attack, damage and save rolls stay under Roll) plus roll type, degree of success, target, item or spell, damage type and
   trait filters, read from `flags.pf2e`. For players its `redactor` strips the content PF2e
   hides and swaps hidden token names for the author, mirroring `UserVisibilityPF2e`.
 

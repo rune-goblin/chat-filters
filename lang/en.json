@@ -74,6 +74,11 @@
     "clear": "Clear search and filters",
     "clearFilters": "Clear filters",
     "remove": "Remove filter",
-    "showInLog": "Show in full chat log"
+    "showInLog": "Show in full chat log",
+    "suggest": {
+      "text": "Text",
+      "textValue": "Messages containing “{text}”",
+      "filters": "Filters"
+    }
   }
 }

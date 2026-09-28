@@ -64,6 +64,13 @@ function pf2eConfig<T = string>(dictionary: string): Record<string, T> | undefin
   return (CONFIG as unknown as { PF2E?: Record<string, Record<string, T>> }).PF2E?.[dictionary];
 }
 
+/** The card a spell posts when cast or shared; its attack, damage and save rolls carry other context types. */
+export function isSpellCard(flags: Pf2eFlags): boolean {
+  if (flags.origin?.type !== 'spell') return false;
+  const type = flags.context?.type;
+  return !type || type === 'spell-cast';
+}
+
 const STATISTIC_OPTION = /^check:statistic:(?!base:)(.+)$/;
 
 function checkLabel(slug: string): string {
@@ -147,11 +154,7 @@ export function createPf2eAdapter(
       {
         key: 'kind',
         label: `${MODULE_ID}.facet.kind`,
-        values: (m) => {
-          const flags = pf2e(m);
-          const isSpell = flags.origin?.type === 'spell' || !!flags.casting || flags.context?.type === 'spell-cast';
-          return isSpell ? ['spell'] : [];
-        },
+        values: (m) => (isSpellCard(pf2e(m)) ? ['spell'] : []),
       },
       {
         key: 'pf2e.rollType',

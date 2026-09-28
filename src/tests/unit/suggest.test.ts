@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { currentToken, suggest, type FacetEntry } from '@/search/suggest';
+import { currentToken, suggest, suggestionRows, type FacetEntry, type Suggestion } from '@/search/suggest';
 
 const entries: FacetEntry[] = [
   {
@@ -61,5 +61,25 @@ describe('suggest', () => {
 
   it('skips values already selected', () => {
     expect(labels('sp', { kind: ['spell'] })).toEqual(['Item or spell: Speak with Animals']);
+  });
+});
+
+describe('suggestionRows', () => {
+  const fireball: Suggestion = { key: 'pf2e.item', value: 'Fireball', facetLabel: 'Item or spell', valueLabel: 'Fireball', count: 5 };
+
+  it('lists the filters first and the text search last', () => {
+    expect(suggestionRows('fireball', 14, [fireball]).map((r) => r.kind)).toEqual(['filter', 'text']);
+  });
+
+  it('keeps the whole query in the text row', () => {
+    expect(suggestionRows('cast fireball ', 14, [fireball]).at(-1)).toEqual({ kind: 'text', text: 'cast fireball', count: 14 });
+  });
+
+  it('stays closed when no filter matches', () => {
+    expect(suggestionRows('fireball', 14, [])).toEqual([]);
+  });
+
+  it('offers only filters for a facet:value query', () => {
+    expect(suggestionRows('item:fire', 0, [fireball]).map((r) => r.kind)).toEqual(['filter']);
   });
 });

@@ -2,11 +2,12 @@
   import { MODULE_ID } from '@/constants';
   import { facetOptions } from '@/search/filter';
   import { search } from '@/search/state.svelte';
-  import { currentToken, suggest, type Suggestion } from '@/search/suggest';
+  import { currentToken, suggest, suggestionRows, type Row } from '@/search/suggest';
   import type { FacetDef } from '@/search/types';
   import { FiltersApp } from './FiltersApp';
 
   const t = (key: string) => game.i18n?.localize(`${MODULE_ID}.${key}`) ?? key;
+  const f = (key: string, data: Record<string, string>) => game.i18n?.format(`${MODULE_ID}.${key}`, data) ?? key;
   const valueLabel = (facet: FacetDef, value: string) => facet.valueLabel?.(value) ?? value;
 
   let focused = $state(false);
@@ -14,7 +15,7 @@
 
   const facetByKey = $derived(new Map(search.index.facets.map((f) => [f.key, f])));
   const token = $derived(currentToken(search.text));
-  const suggestions = $derived.by(() => {
+  const rows = $derived.by((): Row[] => {
     if (!focused || !token || dismissedFor === search.text) return [];
     const entries = search.index.facets.map((facet) => ({
       key: facet.key,
@@ -24,7 +25,7 @@
         label: valueLabel(facet, o.value),
       })),
     }));
-    return suggest(token.text, entries, search.facets);
+    return suggestionRows(search.text, search.results.length, suggest(token.text, entries, search.facets));
   });
   const chips = $derived(
     Object.entries(search.facets).flatMap(([key, values]) => {
@@ -35,24 +36,33 @@
 
   // Writable derived: arrow keys move it, and a new suggestion list resets it.
   let highlighted = $derived.by(() => {
-    void suggestions;
+    void rows;
     return 0;
   });
 
-  function pick(suggestion: Suggestion) {
-    search.select(suggestion.key, suggestion.value);
-    if (token) search.text = search.text.slice(0, token.start);
+  function pick(row: Row) {
+    if (row.kind === 'filter') {
+      search.select(row.key, row.value);
+      if (token) search.text = search.text.slice(0, token.start);
+      return;
+    }
+    dismissedFor = search.text;
   }
 
+  const group = (row: Row) => (row.kind === 'filter' ? 'filters' : 'text');
+  const rowKey = (row: Row) => (row.kind === 'text' ? 'text' : `${row.key}:${row.value}`);
+
+  const rowLabel = (row: Row) => (row.kind === 'text' ? f('suggest.textValue', { text: row.text }) : row.valueLabel);
+
   function onKeydown(event: KeyboardEvent) {
-    const open = suggestions.length > 0;
+    const open = rows.length > 0;
     if (open && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
       event.preventDefault();
       const step = event.key === 'ArrowDown' ? 1 : -1;
-      highlighted = (highlighted + step + suggestions.length) % suggestions.length;
+      highlighted = (highlighted + step + rows.length) % rows.length;
     } else if (open && (event.key === 'Enter' || event.key === 'Tab')) {
       event.preventDefault();
-      pick(suggestions[highlighted]);
+      pick(rows[highlighted]);
     } else if (event.key === 'Escape') {
       event.stopPropagation();
       if (open) dismissedFor = search.text;
@@ -78,28 +88,34 @@
         role="combobox"
         aria-controls="{MODULE_ID}-suggestions"
         aria-autocomplete="list"
-        aria-expanded={suggestions.length > 0}
+        aria-expanded={rows.length > 0}
         autocomplete="off"
         onkeydown={onKeydown}
+        oninput={() => (dismissedFor = null)}
         onfocus={() => (focused = true)}
         onblur={() => (focused = false)}
       />
-      {#if suggestions.length}
+      {#if rows.length}
         <ul id="{MODULE_ID}-suggestions" class="suggestions" role="listbox">
-          {#each suggestions as suggestion, i (`${suggestion.key}:${suggestion.value}`)}
+          {#each rows as row, i (rowKey(row))}
+            {#if i === 0 || group(rows[i - 1]) !== group(row)}
+              <li role="presentation" class="group" data-group={group(row)}>{t(`suggest.${group(row)}`)}</li>
+            {/if}
             <li
               role="option"
               aria-selected={i === highlighted}
               class:highlighted={i === highlighted}
+              data-row={row.kind}
+              data-value={row.kind === 'text' ? undefined : row.value}
               onpointerdown={(e) => {
                 e.preventDefault();
-                pick(suggestion);
+                pick(row);
               }}
               onpointerenter={() => (highlighted = i)}
             >
-              <span class="facet">{suggestion.facetLabel}</span>
-              <span class="value">{suggestion.valueLabel}</span>
-              <span class="n">{suggestion.count}</span>
+              {#if row.kind === 'filter'}<span class="facet">{row.facetLabel}</span>{/if}
+              <span class="value">{rowLabel(row)}</span>
+              <span class="n">{row.count}</span>
             </li>
           {/each}
         </ul>
@@ -190,6 +206,18 @@
     border-radius: 3px;
     cursor: pointer;
     font-size: var(--font-size-13, 0.8125rem);
+  }
+  .suggestions li.group {
+    padding: 4px 6px 2px;
+    cursor: default;
+    font-size: var(--font-size-10, 0.625rem);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+  }
+  .suggestions li.group:not(:first-child) {
+    margin-top: 2px;
+    border-top: 1px solid var(--color-cool-4, #444);
   }
   .suggestions li.highlighted {
     background: var(--color-cool-4, #333);

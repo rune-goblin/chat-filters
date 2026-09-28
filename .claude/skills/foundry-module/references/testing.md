@@ -105,6 +105,17 @@ broke. Conventions:
   **`__e2e_`** prefix and delete them in **`afterEach`** — leave the world as you found it.
 - Keep `global-setup.ts` and the fixtures generic (game-ready / module-active); put feature-specific
   setup in the spec.
+- Create seed documents **one at a time** when the spec needs to tell them apart. A batch
+  `Document.create([...])` can resolve its documents out of order (measured: 6 swaps in 15 batches
+  of chat messages), which pins an assertion to the wrong document.
+- Give throwaway users a **unique** `__e2e_` name. v14's `/join` takes a typed name, so a
+  duplicate is ambiguous. `global-setup` sweeps `__e2e_` messages and users a dead run left behind.
+- Show the UI you drive before typing into it. A GM's sidebar may open on another tab, and
+  Playwright then waits on a hidden input until the test times out.
+- Test clients set `core.noCanvas` (`newFoundryContext` / `skipCanvas`). A big scene rendered
+  without a GPU can hold `game.ready` past the wait; specs drive the sidebar, not the board.
+- Prove each new spec by breaking the code it covers and watching it fail, then run the suite with
+  `--repeat-each 3` and no retries. One intermittent failure means a race to fix, not a retry to add.
 
 ## Strip-on-init lifecycle
 

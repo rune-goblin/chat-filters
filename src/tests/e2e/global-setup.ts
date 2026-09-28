@@ -1,5 +1,5 @@
 import { chromium, type FullConfig } from '@playwright/test';
-import { MODULE_ID, joinAsFirstGm, waitForGameReady } from './fixtures/foundry-clients';
+import { MODULE_ID, joinAsFirstGm, skipCanvas, waitForGameReady } from './fixtures/foundry-clients';
 
 /**
  * Guarantee the world the harness launched has this module enabled before any spec runs. Dev
@@ -13,6 +13,7 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
   const baseURL = config.projects[0]?.use?.baseURL ?? 'http://127.0.0.1:30005';
   const browser = await chromium.launch();
   const page = await browser.newPage({ baseURL, viewport: { width: 1440, height: 900 } });
+  await skipCanvas(page);
 
   const isActive = () =>
     page.evaluate((id) => !!(window as any).game?.modules?.get(id)?.active, MODULE_ID);
@@ -59,6 +60,25 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
             `Open the test world once, enable the module in Manage Modules, return to setup, and re-run.`,
         );
       }
+    }
+
+    // A run that dies mid-spec skips its afterEach, so sweep its `__e2e_` leftovers before this one.
+    const swept = await page.evaluate(async () => {
+      const g = (window as any).game;
+      const messages = g.messages.contents.filter((m: any) => /__e2e_/.test(`${m.content} ${m.flavor}`)).map((m: any) => m.id);
+      const named = (collection: any) =>
+        collection.contents.filter((d: any) => d.name.startsWith('__e2e_')).map((d: any) => d.id);
+      const users = named(g.users);
+      const items = named(g.items);
+      if (messages.length) await g.messages.documentClass.deleteDocuments(messages);
+      if (users.length) await g.users.documentClass.deleteDocuments(users);
+      if (items.length) await g.items.documentClass.deleteDocuments(items);
+      return { messages: messages.length, users: users.length, items: items.length };
+    });
+    if (swept.messages || swept.users || swept.items) {
+      console.log(
+        `[e2e] swept leftover __e2e_ documents: ${swept.messages} message(s), ${swept.users} user(s), ${swept.items} item(s).`,
+      );
     }
 
     const version = await page.evaluate((id) => (window as any).game?.modules?.get(id)?.version ?? '?', MODULE_ID);

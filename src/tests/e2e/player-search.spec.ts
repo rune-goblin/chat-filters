@@ -1,5 +1,5 @@
 import type { BrowserContext, Page } from '@playwright/test';
-import { MODULE_ID, expect, joinAs, test, waitForModuleActive } from './fixtures/foundry-clients';
+import { MODULE_ID, expect, joinAs, newFoundryContext, test, waitForModuleActive } from './fixtures/foundry-clients';
 
 const PUBLIC = '__e2e_public_marker';
 const WHISPER = '__e2e_whisper_marker';
@@ -42,25 +42,27 @@ test.beforeAll(async ({ gmPage, browser }) => {
   seeded = await gmPage.evaluate(
     async ({ PUBLIC, WHISPER, BLIND, DC }) => {
       const gm = game.user;
-      const player = await foundry.documents.User.create({ name: '__e2e_player', role: CONST.USER_ROLES.PLAYER });
+      // v14 joins by typed name, so a leftover user with the same name would be ambiguous.
+      const name = `__e2e_player_${foundry.utils.randomID(6)}`;
+      const player = await foundry.documents.User.create({ name, role: CONST.USER_ROLES.PLAYER });
       const roll = await new foundry.dice.Roll('1d1 + 41').evaluate();
-      const [pub, whisper, blind] = await foundry.documents.ChatMessage.create([
-        { content: `<p>${PUBLIC}</p>`, flavor: `<span data-visibility="gm">${DC}</span>` },
-        { content: `<p>${WHISPER}</p>`, whisper: [gm.id] },
-        {
-          author: player.id,
-          content: `<p>${BLIND}</p>`,
-          rolls: [roll.toJSON()],
-          whisper: [gm.id],
-          blind: true,
-        },
-      ]);
+      // One at a time: a batch create can resolve its documents out of order.
+      const create = (data: object) => foundry.documents.ChatMessage.create(data);
+      const pub = await create({ content: `<p>${PUBLIC}</p>`, flavor: `<span data-visibility="gm">${DC}</span>` });
+      const whisper = await create({ content: `<p>${WHISPER}</p>`, whisper: [gm.id] });
+      const blind = await create({
+        author: player.id,
+        content: `<p>${BLIND}</p>`,
+        rolls: [roll.toJSON()],
+        whisper: [gm.id],
+        blind: true,
+      });
       return { playerId: player.id, messageIds: { public: pub.id, whisper: whisper.id, blind: blind.id } };
     },
     { PUBLIC, WHISPER, BLIND, DC },
   );
 
-  playerContext = await browser.newContext();
+  playerContext = await newFoundryContext(browser);
   playerPage = await playerContext.newPage();
   await joinAs(playerPage, seeded.playerId);
   await waitForModuleActive(playerPage);
@@ -96,6 +98,7 @@ test('a player sees only the header of their own blind roll', async ({ gmPage })
 });
 
 test('typing a hidden term into the bar shows the player no results', async () => {
+  await playerPage.evaluate((id) => game.modules.get(id).api.focus(), MODULE_ID);
   const input = playerPage.locator(`#chat .${MODULE_ID}-input`);
   await input.fill(WHISPER);
   await expect(playerPage.locator(`#chat .${MODULE_ID}-results .message`)).toHaveCount(0);
