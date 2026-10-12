@@ -30,13 +30,23 @@ that system stores on its messages.
 
 - **Pathfinder 2e** (`src/adapters/pf2e.ts`) adds **Spell** to Type (the card a spell posts;
   its attack, damage and save rolls stay under Roll) plus roll type, degree of success, target, item or spell, damage type and
-  trait filters, read from `flags.pf2e`. For players its `redactor` strips the content PF2e
+  trait filters, read from `flags.pf2e` and the message's rolls. For players its `redactor` strips the content PF2e
   hides and swaps hidden token names for the author, mirroring `UserVisibilityPF2e`.
+  Its **Button** filter covers the buttons PF2e adds when it renders a card, which the stored
+  message never holds: **Make Recovery Check** on a persistent damage card while the creature
+  keeps the condition, and **Apply Healing** on a roll that heals. Typing "recovery" or "heal"
+  offers them, and a text search matches their labels.
 
 To support another system, write a `SystemAdapter` that lists `FacetDef`s and register it in
 `src/adapters/index.ts`. An adapter facet that reuses a core key adds values to that facet. If
 the system hides parts of a card from players, give the adapter a `redactor` and gate any facet
 that reads hidden data, or player searches will match text their cards never show.
+
+Two `FacetDef` flags cover what a system adds at render time. `printed` puts the facet's value
+labels into the searched text, for words the card shows and the message does not store. `live`
+marks a facet that reads world state beyond the message; the index re-reads it on every build
+and rebuilds the record when it changed. List the hooks that change it in the adapter's
+`refreshOn` (PF2e: `createItem` and `deleteItem`, since a condition is an item).
 
 ## Layout
 

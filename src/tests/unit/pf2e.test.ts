@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createPf2eAdapter, playerSeesElement, type Pf2eViewer } from '@/adapters/pf2e';
+import { createPf2eAdapter, playerSeesElement, type FlaggedMessage, type Pf2eViewer } from '@/adapters/pf2e';
 
 const names: Record<string, string> = {
   'Scene.s.Token.t': 'Goblin Warrior',
@@ -27,13 +27,21 @@ const attack = {
 };
 
 const damage = {
-  flags: {
-    pf2e: {
-      context: { type: 'damage-roll', outcome: 'success', target: { actor: 'Actor.a' } },
-      damageRoll: { types: { slashing: {}, fire: {} }, traits: ['attack', 'fire'] },
-    },
-  },
+  flags: { pf2e: { context: { type: 'damage-roll', outcome: 'success', target: { actor: 'Actor.a' } } } },
+  rolls: [{ instances: [{ type: 'slashing' }, { type: 'fire' }, { type: 'fire' }], kinds: new Set(['damage']) }],
 };
+
+const actorWith = (conditions: string[], isOwner = true) => ({
+  isOwner,
+  getCondition: (slug: string) => (conditions.includes(slug) ? {} : null),
+});
+
+/** The card a persistent damage condition posts at the end of a turn: a damage roll with no check context. */
+const burning = (speakerActor: FlaggedMessage['speakerActor'], options: Record<string, unknown> = { evaluatePersistent: true }) => ({
+  flags: { pf2e: { origin: { uuid: 'Actor.v.Item.c' } } },
+  rolls: [{ options, instances: [{ type: 'fire', persistent: true }], kinds: new Set(['damage']) }],
+  speakerActor,
+});
 
 describe('pf2e adapter', () => {
   it('reads roll type and degree of success from the check context', () => {
@@ -50,9 +58,18 @@ describe('pf2e adapter', () => {
     expect(facet('pf2e.item').values(attack)).toEqual(['Longsword']);
   });
 
-  it('lists damage types and merges traits without duplicates', () => {
+  it('lists each damage type of the rolled instances once', () => {
     expect(facet('pf2e.damageType').values(damage)).toEqual(['slashing', 'fire']);
-    expect(facet('pf2e.trait').values(damage)).toEqual(['attack', 'fire']);
+    expect(facet('pf2e.damageType').values(attack)).toEqual([]);
+  });
+
+  it('reads traits from the check context', () => {
+    expect(facet('pf2e.trait').values(attack)).toEqual(['attack', 'manipulate']);
+  });
+
+  it('files a damage roll posted without a check context under damage', () => {
+    expect(facet('pf2e.rollType').values(burning(null))).toEqual(['damage-roll']);
+    expect(facet('pf2e.rollType').values({ flags: {}, rolls: [{}] })).toEqual([]);
   });
 
   it('yields nothing for messages without PF2e flags', () => {
@@ -81,6 +98,37 @@ describe('pf2e spell kind', () => {
 
   it('leaves weapon strikes alone', () => {
     expect(kind.values(attack)).toEqual([]);
+  });
+});
+
+describe('pf2e buttons added at render', () => {
+  const button = facet('pf2e.button');
+
+  it('offers the recovery check while the speaker keeps that persistent damage', () => {
+    expect(button.values(burning(actorWith(['persistent-damage-fire'])))).toEqual(['recovery-check']);
+    expect(button.values(burning(actorWith(['persistent-damage-acid'])))).toEqual([]);
+    expect(button.values(burning(actorWith([])))).toEqual([]);
+    expect(button.values(burning(null))).toEqual([]);
+  });
+
+  it('offers the recovery check to an owner of the speaker only', () => {
+    expect(button.values(burning(actorWith(['persistent-damage-fire'], false)))).toEqual([]);
+  });
+
+  it('leaves the strike that deals persistent damage without a recovery check', () => {
+    expect(button.values(burning(actorWith(['persistent-damage-fire']), {}))).toEqual([]);
+  });
+
+  it('offers healing on a roll that heals', () => {
+    const healing = { flags: {}, rolls: [{ instances: [{ type: 'untyped' }], kinds: new Set(['healing']) }] };
+    expect(button.values(healing)).toEqual(['apply-healing']);
+    expect(button.values(damage)).toEqual([]);
+  });
+
+  it('prints its labels and follows the world state', () => {
+    expect(button.printed).toBe(true);
+    expect(button.live).toBe(true);
+    expect(adapter.refreshOn).toEqual(['createItem', 'deleteItem']);
   });
 });
 

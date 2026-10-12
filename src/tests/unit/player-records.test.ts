@@ -148,6 +148,38 @@ describe('player records under pf2e', () => {
   });
 });
 
+describe('persistent damage card under pf2e', () => {
+  const card = (isOwner: boolean) =>
+    message({
+      isRoll: true,
+      flavor: '<strong>Persistent Damage (2d6 fire)</strong>',
+      rolls: [
+        {
+          formula: '{(2d6)[persistent,fire]}',
+          total: 5,
+          options: { evaluatePersistent: true },
+          instances: [{ type: 'fire', persistent: true }],
+          kinds: new Set(['damage']),
+        },
+      ],
+      speakerActor: { isOwner, getCondition: (slug: string) => (slug === 'persistent-damage-fire' ? {} : null) },
+    });
+
+  it('matches a text search for the recovery button its owner sees', () => {
+    const record = recordFor(card(true), { isGM: true });
+    expect(record.haystack).toContain('recovery check');
+    expect(record.facets['pf2e.button']).toEqual(['recovery-check']);
+    expect(record.facets['pf2e.rollType']).toEqual(['damage-roll']);
+    expect(record.facets['pf2e.damageType']).toEqual(['fire']);
+  });
+
+  it('carries no button for a player who cannot roll the check', () => {
+    const record = recordFor(card(false));
+    expect(record.haystack).not.toContain('recovery');
+    expect(record.facets['pf2e.button']).toBeUndefined();
+  });
+});
+
 describe('player records under other systems', () => {
   it('still indexes only the header of a blind roll', () => {
     const record = recordFor(check({ blind: true, isContentVisible: false }), { system: 'dnd5e' });

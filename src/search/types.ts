@@ -23,6 +23,10 @@ export interface FacetDef<M = ChatMessage> {
   valueLabel?(value: string): string;
   /** Shown on the card even when its content is hidden, as on a blind roll. */
   header?: boolean;
+  /** The card prints its value labels, so a text search matches them too. */
+  printed?: boolean;
+  /** Reads world state beyond the message, so the index re-reads it on every build. */
+  live?: boolean;
 }
 
 /**
@@ -40,6 +44,8 @@ export interface SystemAdapter<M = ChatMessage> {
   systemId: string;
   facets: FacetDef<M>[];
   redactor?: Redactor<M>;
+  /** Hooks after which a live facet may read differently. */
+  refreshOn?: string[];
 }
 
 /** How the index turns a message into a record for the current user. */
@@ -47,6 +53,7 @@ export interface RecordView {
   facets: FacetDef[];
   speaker(message: ChatMessage): string;
   redact?(root: ParentNode, message: ChatMessage): void;
+  refreshOn?: string[];
 }
 
 export type TimeRange = 'all' | 'hour' | 'today' | 'week';

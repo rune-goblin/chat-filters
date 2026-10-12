@@ -38,5 +38,6 @@ export function activeView(isGM: boolean): RecordView {
     facets: mergeFacets(coreFacets(speaker), adapter?.facets ?? []),
     speaker,
     redact: redactor?.content?.bind(redactor),
+    refreshOn: adapter?.refreshOn,
   };
 }

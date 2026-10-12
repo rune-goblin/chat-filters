@@ -49,6 +49,16 @@ function visibleText(html: string | null | undefined, message: ChatMessage, view
   return htmlToText(template.innerHTML);
 }
 
+function facetValues(facet: FacetDef, message: ChatMessage): string[] {
+  if (!message.isContentVisible && !facet.header) return [];
+  try {
+    return facet.values(message);
+  } catch (err) {
+    console.warn(`${MODULE_ID} | facet "${facet.key}" failed on message ${message.id}`, err);
+    return [];
+  }
+}
+
 /**
  * Indexes only what the current user's card shows. A blind roll shows its author only the
  * header, so its record carries the header facets and nothing from the content or rolls.
@@ -60,23 +70,31 @@ export function buildRecord(message: ChatMessage, view: RecordView): MessageReco
   const content = hidden ? '' : visibleText(message.content, message, view);
   const rolls = hidden ? '' : message.rolls.map((roll) => `${roll.formula} = ${roll.total ?? ''}`).join(' · ');
 
-  const record: MessageRecord = {
+  const facets: Record<string, string[]> = {};
+  const printed: string[] = [];
+  for (const facet of view.facets) {
+    const values = facetValues(facet, message);
+    if (!values.length) continue;
+    facets[facet.key] = values;
+    if (facet.printed) printed.push(...values.map((value) => facet.valueLabel?.(value) ?? value));
+  }
+
+  return {
     id: message.id!,
     timestamp: message.timestamp ?? 0,
     speaker,
-    haystack: [speaker, flavor, content, rolls].join(' ').toLowerCase(),
+    haystack: [speaker, flavor, content, rolls, ...printed].join(' ').toLowerCase(),
     preview: [flavor, content].filter(Boolean).join(' — ') || rolls,
-    facets: {},
+    facets,
   };
+}
 
-  for (const facet of view.facets) {
-    if (hidden && !facet.header) continue;
-    try {
-      const values = facet.values(message);
-      if (values.length) record.facets[facet.key] = values;
-    } catch (err) {
-      console.warn(`${MODULE_ID} | facet "${facet.key}" failed on message ${message.id}`, err);
-    }
-  }
-  return record;
+/** A live facet now reads differently than it did when `record` was built. */
+export function isStale(record: MessageRecord, message: ChatMessage, view: RecordView): boolean {
+  return view.facets.some((facet) => {
+    if (!facet.live) return false;
+    const values = facetValues(facet, message);
+    const indexed = record.facets[facet.key] ?? [];
+    return values.length !== indexed.length || values.some((value, i) => value !== indexed[i]);
+  });
 }

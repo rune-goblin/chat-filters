@@ -1,5 +1,5 @@
 import { activeView } from '@/adapters';
-import { buildRecord } from './records';
+import { buildRecord, isStale } from './records';
 import type { FacetDef, MessageRecord, RecordView } from './types';
 
 /** Live, newest-first index of the chat messages the current user can see. */
@@ -22,10 +22,12 @@ export class ChatIndex {
       this.#cache.delete(message.id!);
       this.#refresh();
     };
+    const refresh = () => this.#refresh();
     this.#hooks = [
-      ['createChatMessage', Hooks.on('createChatMessage', () => this.#refresh())],
+      ['createChatMessage', Hooks.on('createChatMessage', refresh)],
       ['updateChatMessage', Hooks.on('updateChatMessage', invalidate)],
       ['deleteChatMessage', Hooks.on('deleteChatMessage', invalidate)],
+      ...(this.#view.refreshOn ?? []).map((hook): [string, number] => [hook, Hooks.on(hook as never, refresh as never)]),
     ];
   }
 
@@ -41,7 +43,8 @@ export class ChatIndex {
     const live = new Map<string, MessageRecord>();
     for (const message of game.messages.contents) {
       if (!message.visible) continue;
-      const record = this.#cache.get(message.id!) ?? buildRecord(message, view);
+      const cached = this.#cache.get(message.id!);
+      const record = cached && !isStale(cached, message, view) ? cached : buildRecord(message, view);
       live.set(record.id, record);
       next.push(record);
     }

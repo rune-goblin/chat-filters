@@ -12,12 +12,19 @@ interface Pf2eFlags {
   } | null;
   origin?: { uuid?: string; type?: string } | null;
   casting?: object | null;
-  damageRoll?: { types?: Record<string, unknown>; traits?: string[] } | null;
+}
+
+// The subset of PF2e's DamageRoll (pf2e src/module/system/damage/roll.ts) this adapter reads; other rolls lack `instances`.
+interface DamageRoll {
+  options?: Record<string, unknown>;
+  instances?: { type?: string; persistent?: boolean }[];
+  kinds?: Set<string>;
 }
 
 interface OwnedDoc {
   isOwner?: boolean;
   hasPlayerOwner?: boolean;
+  getCondition?(slug: string): unknown;
 }
 
 interface NamedToken {
@@ -35,6 +42,8 @@ export interface FlaggedMessage {
   actor?: (OwnedDoc & { prototypeToken?: NamedToken }) | null;
   token?: NamedToken | null;
   target?: { actor?: OwnedDoc | null } | null;
+  rolls?: DamageRoll[];
+  speakerActor?: OwnedDoc | null;
 }
 
 /** The PF2e metagame settings that decide what players see; GMs see everything. */
@@ -70,6 +79,24 @@ export function isSpellCard(flags: Pf2eFlags): boolean {
   const type = flags.context?.type;
   return !type || type === 'spell-cast';
 }
+
+/**
+ * Mirrors ChatMessagePF2e#renderHTML, which adds the button to a persistent damage card for as
+ * long as its speaker keeps the condition.
+ */
+export function offersRecoveryCheck(message: FlaggedMessage): boolean {
+  const roll = message.rolls?.[0];
+  if (!roll?.options?.evaluatePersistent) return false;
+  const type = roll.instances?.find((instance) => instance.persistent)?.type;
+  const actor = message.speakerActor;
+  return !!type && !!actor?.isOwner && !!actor.getCondition?.(`persistent-damage-${type}`);
+}
+
+// PF2e's own strings, so a label reads as its button does in any language.
+const BUTTON_LABELS: Record<string, string> = {
+  'recovery-check': 'PF2E.Item.Condition.PersistentDamage.Chat.Recover',
+  'apply-healing': 'PF2E.Damage.Kind.Healing.Apply.Label',
+};
 
 const STATISTIC_OPTION = /^check:statistic:(?!base:)(.+)$/;
 
@@ -160,10 +187,23 @@ export function createPf2eAdapter(
         key: 'pf2e.rollType',
         label: `${MODULE_ID}.pf2e.facet.rollType`,
         values: (m) => {
-          const type = pf2e(m).context?.type;
+          // Persistent damage, regeneration and item healing are damage rolls posted without a context.
+          const type = pf2e(m).context?.type ?? (m.rolls?.[0]?.instances ? 'damage-roll' : undefined);
           return type ? [type] : [];
         },
         valueLabel: (v) => localizeOr(`${MODULE_ID}.pf2e.rollType.${v}`, humanize(v)),
+      },
+      {
+        // Buttons PF2e adds when it renders the card; the stored message holds none of their text.
+        key: 'pf2e.button',
+        label: `${MODULE_ID}.pf2e.facet.button`,
+        values: (m) => [
+          ...(offersRecoveryCheck(m) ? ['recovery-check'] : []),
+          ...(m.rolls?.some((roll) => roll.kinds?.has('healing')) ? ['apply-healing'] : []),
+        ],
+        valueLabel: (v) => localizeOr(BUTTON_LABELS[v], humanize(v)),
+        printed: true,
+        live: true,
       },
       {
         key: 'pf2e.check',
@@ -200,19 +240,20 @@ export function createPf2eAdapter(
       {
         key: 'pf2e.damageType',
         label: `${MODULE_ID}.pf2e.facet.damageType`,
-        values: (m) => Object.keys(pf2e(m).damageRoll?.types ?? {}),
+        values: (m) => [
+          ...new Set((m.rolls ?? []).flatMap((roll) => (roll.instances ?? []).flatMap((instance) => instance.type ?? []))),
+        ],
         valueLabel: (v) => localizeOr(pf2eConfig('damageTypes')?.[v], humanize(v)),
       },
       {
         key: 'pf2e.trait',
         label: `${MODULE_ID}.pf2e.facet.trait`,
-        values: (m) => {
-          const flags = pf2e(m);
-          return [...new Set([...(flags.context?.traits ?? []), ...(flags.damageRoll?.traits ?? [])])];
-        },
+        values: (m) => pf2e(m).context?.traits ?? [],
         valueLabel: (v) => localizeOr(pf2eConfig('actionTraits')?.[v], humanize(v)),
       },
     ],
+    // A condition is an item, so the recovery button comes and goes with these.
+    refreshOn: ['createItem', 'deleteItem'],
     redactor: {
       speaker: (m) => {
         if (!viewer().tokenNames) return null;

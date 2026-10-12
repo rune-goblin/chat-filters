@@ -39,7 +39,8 @@
         "item": "Item or spell",
         "damageType": "Damage type",
         "trait": "Trait",
-        "check": "Check"
+        "check": "Check",
+        "button": "Button"
       },
       "rollType": {
         "attack-roll": "Attack",
