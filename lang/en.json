@@ -40,7 +40,9 @@
         "damageType": "Damage type",
         "trait": "Trait",
         "check": "Check",
-        "button": "Button"
+        "button": "Button",
+        "prompt": "Prompt",
+        "awaiting": "Awaiting roll"
       },
       "rollType": {
         "attack-roll": "Attack",
@@ -66,6 +68,7 @@
       },
       "check": {
         "dying-recovery": "Recovery check (dying)",
+        "flat": "Flat check",
         "pd-recovery": "Persistent damage recovery",
         "perception": "Perception"
       }

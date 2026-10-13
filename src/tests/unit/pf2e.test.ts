@@ -128,7 +128,7 @@ describe('pf2e buttons added at render', () => {
   it('prints its labels and follows the world state', () => {
     expect(button.printed).toBe(true);
     expect(button.live).toBe(true);
-    expect(adapter.refreshOn).toEqual(['createItem', 'deleteItem']);
+    expect(adapter.refreshOn).toEqual(['createItem', 'deleteItem', 'deleteToken']);
   });
 });
 

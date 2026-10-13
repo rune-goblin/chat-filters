@@ -39,5 +39,6 @@ export function activeView(isGM: boolean): RecordView {
     speaker,
     redact: redactor?.content?.bind(redactor),
     refreshOn: adapter?.refreshOn,
+    prepare: adapter?.prepare,
   };
 }

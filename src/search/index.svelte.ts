@@ -41,8 +41,9 @@ export class ChatIndex {
     const view = this.#view;
     const next: MessageRecord[] = [];
     const live = new Map<string, MessageRecord>();
-    for (const message of game.messages.contents) {
-      if (!message.visible) continue;
+    const messages = game.messages.contents.filter((message) => message.visible);
+    view.prepare?.(messages);
+    for (const message of messages) {
       const cached = this.#cache.get(message.id!);
       const record = cached && !isStale(cached, message, view) ? cached : buildRecord(message, view);
       live.set(record.id, record);

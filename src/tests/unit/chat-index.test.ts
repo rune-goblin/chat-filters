@@ -19,7 +19,16 @@ function card(id: string, type: string) {
     visible: true,
     isContentVisible: true,
     flags: {},
+    speaker: { token: 'graveknight' },
     speakerActor: { isOwner: true, getCondition: (slug: string) => (conditions.has(slug) ? {} : null) },
+  };
+}
+
+function recoveryRoll(id: string, type: string) {
+  return {
+    ...card(id, type),
+    rolls: [{ formula: '1d20', total: 9 }],
+    flags: { pf2e: { context: { type: 'flat-check', options: ['check:statistic:pd-recovery', `item:damage:type:${type}`] } } },
   };
 }
 
@@ -71,6 +80,21 @@ describe('ChatIndex live facets', () => {
     handlers.get('createItem')!();
 
     expect(buttons(index, 'fire')).toEqual(['recovery-check']);
+  });
+
+  it('reads each card against the rest of the log, and again when a roll arrives', () => {
+    const index = new ChatIndex();
+    index.connect();
+    const awaiting = (id: string) => index.records.find((r) => r.id === id)!.facets['pf2e.awaiting'];
+    const acid = index.records.find((r) => r.id === 'acid');
+    expect(awaiting('fire')).toEqual(['pd-recovery']);
+
+    game.messages!.contents.push(recoveryRoll('roll', 'fire') as never);
+    handlers.get('createChatMessage')!();
+
+    expect(awaiting('fire')).toBeUndefined();
+    expect(awaiting('acid')).toEqual(['pd-recovery']);
+    expect(index.records.find((r) => r.id === 'acid')).toBe(acid);
   });
 
   it('stops listening on disconnect', () => {

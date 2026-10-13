@@ -46,6 +46,8 @@ export interface SystemAdapter<M = ChatMessage> {
   redactor?: Redactor<M>;
   /** Hooks after which a live facet may read differently. */
   refreshOn?: string[];
+  /** Runs before each build with the messages it indexes, oldest first, so a live facet can read one card against the rest. */
+  prepare?(messages: readonly M[]): void;
 }
 
 /** How the index turns a message into a record for the current user. */
@@ -54,6 +56,7 @@ export interface RecordView {
   speaker(message: ChatMessage): string;
   redact?(root: ParentNode, message: ChatMessage): void;
   refreshOn?: string[];
+  prepare?(messages: readonly ChatMessage[]): void;
 }
 
 export type TimeRange = 'all' | 'hour' | 'today' | 'week';

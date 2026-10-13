@@ -1,5 +1,6 @@
 import { MODULE_ID } from '@/constants';
 import type { SystemAdapter } from '@/search/types';
+import { awaitedRolls, storedPrompts, targetRows, type Answer, type Prompt, type PromptCard } from './pf2e-prompts';
 
 // The subset of PF2e's ChatMessageFlagsPF2e (pf2e src/module/chat-message/data.ts) this adapter reads.
 interface Pf2eFlags {
@@ -9,6 +10,7 @@ interface Pf2eFlags {
     target?: { actor?: string; token?: string } | null;
     traits?: string[];
     options?: string[];
+    dc?: { value?: number } | null;
   } | null;
   origin?: { uuid?: string; type?: string } | null;
   casting?: object | null;
@@ -36,6 +38,10 @@ interface NamedToken {
 
 export interface FlaggedMessage {
   flags: object;
+  id?: string | null;
+  flavor?: string;
+  content?: string;
+  speaker?: { token?: string | null; actor?: string | null };
   alias?: string;
   author?: { name?: string } | null;
   isOwner?: boolean;
@@ -51,6 +57,8 @@ export interface Pf2eViewer {
   isGM: boolean;
   showResults: boolean;
   tokenNames: boolean;
+  /** pf2e-toolbelt draws its target rows, with their save buttons and results, on this user's cards. */
+  targetRows?: boolean;
 }
 
 type NameResolver = (uuid: string) => string | null;
@@ -85,11 +93,16 @@ export function isSpellCard(flags: Pf2eFlags): boolean {
  * long as its speaker keeps the condition.
  */
 export function offersRecoveryCheck(message: FlaggedMessage): boolean {
+  return !!recoverySlug(message);
+}
+
+function recoverySlug(message: FlaggedMessage): string | undefined {
   const roll = message.rolls?.[0];
-  if (!roll?.options?.evaluatePersistent) return false;
+  if (!roll?.options?.evaluatePersistent) return undefined;
   const type = roll.instances?.find((instance) => instance.persistent)?.type;
   const actor = message.speakerActor;
-  return !!type && !!actor?.isOwner && !!actor.getCondition?.(`persistent-damage-${type}`);
+  const slug = `persistent-damage-${type}`;
+  return type && actor?.isOwner && actor.getCondition?.(slug) ? slug : undefined;
 }
 
 // PF2e's own strings, so a label reads as its button does in any language.
@@ -99,6 +112,20 @@ const BUTTON_LABELS: Record<string, string> = {
 };
 
 const STATISTIC_OPTION = /^check:statistic:(?!base:)(.+)$/;
+const RECOVERY = 'pd-recovery';
+// A recovery check carries its condition's roll options, the damage type among them.
+const RECOVERY_TYPE_OPTION = /^item:damage:type:(.+)$/;
+const PROMPT_MARKUP = /spell-save|inline-check|@Check\[/;
+
+function rolledStatistic(flags: Pf2eFlags): string | undefined {
+  for (const option of flags.context?.options ?? []) {
+    const statistic = STATISTIC_OPTION.exec(option)?.[1];
+    if (statistic) return statistic;
+  }
+  return undefined;
+}
+
+const rollerOf = (message: FlaggedMessage) => message.speaker?.token ?? message.speaker?.actor ?? undefined;
 
 function checkLabel(slug: string): string {
   const key =
@@ -110,10 +137,13 @@ function checkLabel(slug: string): string {
 
 const currentViewer = (): Pf2eViewer => {
   const settings = (game as { pf2e?: { settings?: Pf2eSettings } }).pf2e?.settings;
+  const isGM = !!game.user?.isGM;
   return {
-    isGM: !!game.user?.isGM,
+    isGM,
     showResults: settings?.metagame?.results ?? true,
     tokenNames: settings?.tokens?.nameVisibility ?? false,
+    // Toolbelt hides rows and names from players by rules of its own, so only the GM's are read.
+    targetRows: isGM && !!game.modules?.get('pf2e-toolbelt')?.active,
   };
 };
 
@@ -175,6 +205,62 @@ export function createPf2eAdapter(
     return name ? [name] : [];
   };
 
+  const redact = (root: ParentNode, m: FlaggedMessage) => {
+    for (const el of root.querySelectorAll<HTMLElement>('[data-visibility]')) {
+      if (!playerSeesElement(el.dataset, m)) el.remove();
+    }
+  };
+
+  // Every build reads every card, so a card is parsed once per text; PF2e swaps in an enriched flavor at render.
+  const parsed = new WeakMap<FlaggedMessage, { flavor?: string; content?: string; prompts: Prompt[] }>();
+  const storedPromptsOf = (m: FlaggedMessage): Prompt[] => {
+    const cached = parsed.get(m);
+    if (cached && cached.flavor === m.flavor && cached.content === m.content) return cached.prompts;
+    const html = `${m.flavor ?? ''}${m.content ?? ''}`;
+    let prompts: Prompt[] = [];
+    if (PROMPT_MARKUP.test(html)) {
+      const template = document.createElement('template');
+      template.innerHTML = html;
+      if (!viewer().isGM) redact(template.content, m);
+      prompts = storedPrompts(template.content, pf2e(m).origin?.uuid);
+    }
+    parsed.set(m, { flavor: m.flavor, content: m.content, prompts });
+    return prompts;
+  };
+
+  const rowsOf = (m: FlaggedMessage) => (viewer().targetRows ? targetRows(m.flags, (uuid) => resolveName(uuid) !== null) : null);
+
+  const promptsOf = (m: FlaggedMessage, rows = rowsOf(m)): Prompt[] => {
+    const stored = storedPromptsOf(m);
+    if (!rows?.damage || !rows.targets.length) return stored;
+    const item = rows.item ?? pf2e(m).origin?.uuid;
+    return [...stored, ...rows.saves.map(({ statistic, dc }) => ({ statistic, dc, item }))];
+  };
+
+  const cardOf = (m: FlaggedMessage): PromptCard => {
+    const flags = pf2e(m);
+    const rows = rowsOf(m);
+    const prompts = promptsOf(m, rows);
+    const answers: Answer[] = [];
+    const rolled = rolledStatistic(flags);
+    if (rolled === RECOVERY) {
+      const type = flags.context?.options?.flatMap((option) => RECOVERY_TYPE_OPTION.exec(option)?.[1] ?? [])[0];
+      answers.push({ statistic: RECOVERY, item: `persistent-damage-${type}`, roller: rollerOf(m) });
+    } else if (rolled) {
+      answers.push({ statistic: rolled, dc: flags.context?.dc?.value, item: flags.origin?.uuid, roller: rollerOf(m) });
+    }
+    for (const { statistic, dc, saved } of rows?.saves ?? []) {
+      const item = rows?.item ?? flags.origin?.uuid ?? prompts.find((prompt) => prompt.statistic === statistic)?.item;
+      for (const roller of saved) answers.push({ statistic, dc, item, roller });
+    }
+    const recovery = recoverySlug(m);
+    const roller = rollerOf(m);
+    if (recovery && roller) return { prompts: [{ statistic: RECOVERY, item: recovery }], rollers: [roller], answers };
+    return { prompts, rollers: prompts.length ? (rows?.targets ?? []) : [], answers };
+  };
+
+  const awaited = new Map<string, string[]>();
+
   return {
     systemId: 'pf2e',
     facets: [
@@ -203,6 +289,21 @@ export function createPf2eAdapter(
         ],
         valueLabel: (v) => localizeOr(BUTTON_LABELS[v], humanize(v)),
         printed: true,
+        live: true,
+      },
+      {
+        // Cards that ask for a save or check: a spell's save button, an inline check link, toolbelt's save rows.
+        key: 'pf2e.prompt',
+        label: `${MODULE_ID}.pf2e.facet.prompt`,
+        values: (m) => [...new Set(promptsOf(m).map((prompt) => prompt.statistic))],
+        valueLabel: checkLabel,
+        live: true,
+      },
+      {
+        key: 'pf2e.awaiting',
+        label: `${MODULE_ID}.pf2e.facet.awaiting`,
+        values: (m) => (m.id && awaited.get(m.id)) || [],
+        valueLabel: (v) => (v === RECOVERY ? localizeOr(BUTTON_LABELS['recovery-check'], checkLabel(v)) : checkLabel(v)),
         live: true,
       },
       {
@@ -252,8 +353,17 @@ export function createPf2eAdapter(
         valueLabel: (v) => localizeOr(pf2eConfig('actionTraits')?.[v], humanize(v)),
       },
     ],
-    // A condition is an item, so the recovery button comes and goes with these.
-    refreshOn: ['createItem', 'deleteItem'],
+    // A condition is an item, so the recovery button comes and goes with these; a save row goes with its token.
+    refreshOn: ['createItem', 'deleteItem', 'deleteToken'],
+    // GM only: a player's index lacks toolbelt's save records, so their prompts would all read as unanswered.
+    prepare: (messages) => {
+      awaited.clear();
+      if (!viewer().isGM) return;
+      awaitedRolls(messages.map(cardOf)).forEach((statistics, i) => {
+        const id = messages[i].id;
+        if (id && statistics.length) awaited.set(id, statistics);
+      });
+    },
     redactor: {
       speaker: (m) => {
         if (!viewer().tokenNames) return null;
@@ -262,11 +372,7 @@ export function createPf2eAdapter(
         if (!token || !name || playersCanSeeName(token) || !m.alias?.includes(name)) return null;
         return m.author?.name ?? game.i18n?.localize('USER.RoleGamemaster') ?? '';
       },
-      content: (root, m) => {
-        for (const el of root.querySelectorAll<HTMLElement>('[data-visibility]')) {
-          if (!playerSeesElement(el.dataset, m)) el.remove();
-        }
-      },
+      content: redact,
     },
   };
 }

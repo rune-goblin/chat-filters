@@ -36,6 +36,13 @@ that system stores on its messages.
   message never holds: **Make Recovery Check** on a persistent damage card while the creature
   keeps the condition, and **Apply Healing** on a roll that heals. Typing "recovery" or "heal"
   offers them, and a text search matches their labels.
+  Its **Prompt** filter lists the cards that ask for a save or check: a spell card's save
+  button, an inline check link, and, with pf2e-toolbelt active, the save rows toolbelt draws on
+  a damage card. **Awaiting roll** keeps the prompts no roll has answered, and the persistent
+  damage cards whose recovery check is still due. A card whose toolbelt rows list targets waits
+  on each of them, counting a save in the row or in chat. Any other prompt waits for one later
+  roll of its statistic, for the same item or, where neither side names an item, against the
+  same DC. Awaiting roll is the GM's alone, and toolbelt's rows are read for the GM alone.
 
 To support another system, write a `SystemAdapter` that lists `FacetDef`s and register it in
 `src/adapters/index.ts`. An adapter facet that reuses a core key adds values to that facet. If
@@ -46,7 +53,10 @@ Two `FacetDef` flags cover what a system adds at render time. `printed` puts the
 labels into the searched text, for words the card shows and the message does not store. `live`
 marks a facet that reads world state beyond the message; the index re-reads it on every build
 and rebuilds the record when it changed. List the hooks that change it in the adapter's
-`refreshOn` (PF2e: `createItem` and `deleteItem`, since a condition is an item).
+`refreshOn` (PF2e: `createItem` and `deleteItem`, since a condition is an item, and
+`deleteToken`, since a save row goes with its token). An adapter's `prepare` runs before each
+build with the messages the index holds, for a live facet that reads one card against the
+rest; PF2e uses it to match each prompt to the rolls that follow.
 
 ## Layout
 
@@ -61,6 +71,7 @@ src/search/                   system-agnostic core
   state.svelte.ts             shared query state and results
   suggest.ts                  autofill matching (pure; unit-tested)
 src/adapters/                 per-system facets (pf2e.ts), mergeFacets
+  pf2e-prompts.ts             check prompts and the rolls that answer them (pure; unit-tested)
 src/ui/inline.ts              mounts the bar and results panel into the chat sidebar
 src/ui/SearchBar.svelte       search input, autofill, filter chips, filters button
 src/ui/filtered-log.svelte.ts renders matching messages in place of the log
